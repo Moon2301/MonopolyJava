@@ -14,15 +14,14 @@ public class InGamePlayerCardHand {
     private PlayerCardHandId id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("gamePlayerId")
+    @MapsId("gamePlayerId") // Ánh xạ vào gamePlayerId trong PlayerCardHandId
     @JoinColumn(name = "game_player_id")
     private GamePlayer gamePlayer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "card_id", nullable = false)
+    @MapsId("cardId") // Ánh xạ vào cardId trong PlayerCardHandId
+    @JoinColumn(name = "card_id")
     private Card card;
-
-    private Integer acquiredTurn;
 }
 
 @Embeddable
