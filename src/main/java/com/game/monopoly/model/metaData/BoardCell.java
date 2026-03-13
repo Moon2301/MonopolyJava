@@ -1,19 +1,29 @@
 package com.game.monopoly.model.metaData;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "BoardCell")
-@Getter @Setter
+@Getter
+@Setter
 public class BoardCell {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "cell_id")
     private Integer cellId;
 
     private String name;
-    private String type; // PRISON, START, PROPERTY, CHANCE...
+
+    private String type;
+
     private Integer price;
+
+    @Column(name = "base_rent")
     private Integer baseRent;
+
+    @Column(name = "max_house_level")
     private Integer maxHouseLevel;
 }
