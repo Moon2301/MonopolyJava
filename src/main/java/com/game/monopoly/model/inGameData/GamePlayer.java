@@ -1,36 +1,35 @@
 package com.game.monopoly.model.inGameData;
 
-import com.game.monopoly.model.metaData.Hero;
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "GamePlayer", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"game_id", "turn_order"}),
-        @UniqueConstraint(columnNames = {"game_id", "user_profile_id"})
-})
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Table(name = "GamePlayer")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GamePlayer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "game_player_id")
     private Long gamePlayerId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "game_id", nullable = false)
-    private Game game;
+    @Column(name = "game_id")
+    private Long gameId;
 
-    @Column(name = "user_profile_id", nullable = false)
+    @Column(name = "user_profile_id")
     private Long userProfileId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "character_id", nullable = false)
-    private Hero hero;
+    @Column(name = "character_id")
+    private Integer characterId;
 
     private Integer turnOrder;
-    private Long balance = 0L;
-    private Integer position = 0;
-    private Boolean isBankrupt = false;
-    private Boolean isBot = false;
+    private Long balance;
+    private Integer position;
+
+    private Boolean isBankrupt;
+    private Boolean isBot;
 }

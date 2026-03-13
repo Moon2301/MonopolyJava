@@ -1,55 +1,44 @@
 package com.game.monopoly.model.inGameData;
 
 import com.game.monopoly.model.enums.GameStatus;
-import com.game.monopoly.model.enums.TurnState;
-import com.game.monopoly.model.metaData.Map;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "Game")
-@Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class Game {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "game_id")
     private Long gameId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "map_id", nullable = false)
-    private Map map;
+    @Column(name = "map_id")
+    private Integer mapId;
 
+    @Column(name = "created_by")
     private Long createdBy;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private GameStatus status = GameStatus.WAITING;
+    private GameStatus status;
 
-    private Integer maxPlayers = 4;
-    private Integer currentTurn = 1;
-    private Integer currentPlayerOrder = 1;
+    private Integer maxPlayers;
+    private Integer currentTurn;
+    private Integer currentPlayerOrder;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TurnState turnState = TurnState.WAIT_ROLL;
+    private String turnState;
 
-    @Version
-    private Integer version; // Chống Race Condition
+    private Integer version;
 
     private Long winnerPlayerId;
 
-    @CreationTimestamp
     private LocalDateTime createdAt;
-
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
-
-    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL)
-    private List<GamePlayer> players;
 }

@@ -3,33 +3,29 @@ package com.game.monopoly.model.metaData;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.io.Serializable;
-
 @Entity
 @Table(name = "MapCell")
-@Getter
-@Setter
+@Getter @Setter
 @NoArgsConstructor
+@AllArgsConstructor
 public class MapCell {
 
     @EmbeddedId
-    private MapCellId id;
+    private MapCellId id = new MapCellId();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("mapId") // Ánh xạ mapId từ MapCellId vào entity Map
+    @MapsId("mapId")
     @JoinColumn(name = "map_id")
     private Map map;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cell_id", nullable = false)
     private BoardCell boardCell;
-}
 
-@Embeddable
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-class MapCellId implements Serializable {
-    private Integer mapId;
-    private Integer position;
+    // Optional convenience constructor
+    public MapCell(Map map, Integer position, BoardCell boardCell) {
+        this.map = map;
+        this.boardCell = boardCell;
+        this.id = new MapCellId(map.getMapId(), position);
+    }
 }
