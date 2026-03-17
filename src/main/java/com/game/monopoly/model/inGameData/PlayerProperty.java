@@ -4,16 +4,15 @@ import com.game.monopoly.model.metaData.BoardCell;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.io.Serializable;
-
 @Entity
 @Table(name = "PlayerProperty")
 @Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
+@NoArgsConstructor
+@AllArgsConstructor
 public class PlayerProperty {
 
     @EmbeddedId
-    private PlayerPropertyId id;
+    private PlayerPropertyId id = new PlayerPropertyId();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("gameId")
@@ -27,14 +26,16 @@ public class PlayerProperty {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_player_id")
-    private GamePlayer owner;
+    private GamePlayer ownerPlayer;
 
+    @Column(name = "house_level")
     private Integer houseLevel = 0;
-}
 
-@Embeddable
-@Data
-class PlayerPropertyId implements Serializable {
-    private Long gameId;
-    private Integer cellId;
+    public PlayerProperty(Game game, BoardCell boardCell, GamePlayer ownerPlayer, Integer houseLevel) {
+        this.game = game;
+        this.boardCell = boardCell;
+        this.ownerPlayer = ownerPlayer;
+        this.houseLevel = houseLevel;
+        this.id = new PlayerPropertyId(game.getGameId(), boardCell.getCellId());
+    }
 }

@@ -24,37 +24,48 @@ public class AuthService {
 
     @Transactional
     public void register(RegisterRequest request) {
+
+        if (request.getPassword() == null || request.getPassword().isEmpty()) {
+            throw new RuntimeException("Password is required");
+        }
+
         if (accountRepository.existsByEmail(request.getEmail())) {
             throw new RuntimeException("Email already exists");
         }
+
         if (userProfileRepository.existsByUsername(request.getUsername())) {
             throw new RuntimeException("Username already taken");
         }
 
-        // 1. Tạo Account
         Account account = new Account();
         account.setEmail(request.getEmail());
-        // Băm mật khẩu để lưu vào password_hash
         account.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         account.setRole(UserRole.USER);
         account.setStatus(AccountStatus.ACTIVE);
+
         account = accountRepository.save(account);
 
-        // 2. Tạo UserProfile đi kèm
         UserProfile profile = new UserProfile();
         profile.setAccount(account);
         profile.setUsername(request.getUsername());
         profile.setGold(1000L);
         profile.setDiamonds(10L);
+
         userProfileRepository.save(profile);
     }
-    public String login(LoginRequest request) {
+    public java.util.Map<String, Object> login(LoginRequest request) {
         Account account = accountRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Invalid email or password"));
         if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
             throw new RuntimeException("Invalid email or password");
         }
-        return jwtService.generateToken(account.getEmail());
+        String token = jwtService.generateToken(account.getEmail());
+        
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("token", token);
+        response.put("role", account.getRole().name()); // USER or ADMIN
+        
+        return response;
     }
 
 }

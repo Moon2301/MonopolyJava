@@ -9,26 +9,33 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "GameEvent")
 @Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class GameEvent {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "event_id")
     private Long eventId;
 
-    @ManyToOne
-    @JoinColumn(name = "game_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "game_id", nullable = false)
     private Game game;
 
+    @Column(name = "turn_number", nullable = false)
     private Integer turnNumber;
 
-    @ManyToOne
-    @JoinColumn(name = "actor_player_id")
-    private GamePlayer actor;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actor_player_id", nullable = false)
+    private GamePlayer actorPlayer;
 
+    @Column(name = "event_type", nullable = false, length = 50)
     private String eventType;
 
-    @Column(columnDefinition = "JSON")
+    @Column(nullable = false, columnDefinition = "json")
     private String payload;
 
     @CreationTimestamp
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 }

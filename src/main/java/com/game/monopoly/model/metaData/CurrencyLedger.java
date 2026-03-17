@@ -1,39 +1,45 @@
 package com.game.monopoly.model.metaData;
 
+import com.game.monopoly.model.enums.CurrencyType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "CurrencyLedger")
 @Getter @Setter
-@NoArgsConstructor @AllArgsConstructor
-@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class CurrencyLedger {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "ledger_id")
     private Long ledgerId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_profile_id", nullable = false)
     private UserProfile userProfile;
 
-    @Column(nullable = false)
-    private String currencyType; // GOLD hoặc DIAMOND
+    @Enumerated(EnumType.STRING)
+    @Column(name = "currency_type", nullable = false)
+    private CurrencyType currencyType;
 
     @Column(nullable = false)
-    private Long amount; // Số lượng thay đổi (vd: +500, -200)
+    private Long amount;
 
-    @Column(nullable = false)
-    private Long balanceAfter; // Số dư sau khi thực hiện giao dịch
+    @Column(name = "balance_after", nullable = false)
+    private Long balanceAfter;
 
-    @Column(nullable = false)
-    private String reasonType; // Lý do: "MATCH_REWARD", "BUY_HERO", "RENT_PAYMENT"...
+    @Column(name = "reason_type", nullable = false, length = 50)
+    private String reasonType;
 
-    private Long referenceId; // ID tham chiếu (vd: gameId hoặc transactionId)
+    @Column(name = "reference_id")
+    private Long referenceId;
 
     @CreationTimestamp
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt = LocalDateTime.now();
 }
