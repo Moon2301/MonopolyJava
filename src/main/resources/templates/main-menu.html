@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly - Main Menu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/main-menu.css">
+</head>
+<body>
+<div class="home-menu">
+    <div class="backdrop-shape shape-a"></div>
+    <div class="backdrop-shape shape-b"></div>
+    <div class="backdrop-shape shape-c"></div>
+
+    <header class="top-header">
+        <section class="player-banner">
+            <div class="player-avatar-frame">
+                <img class="player-avatar" id="playerAvatar" src="/images/avatar-default.png" alt="Avatar nguoi choi">
+            </div>
+            <div class="player-info">
+                <div class="player-name-ribbon" id="playerName">Nguoi choi</div>
+                <div class="player-stats">
+                    <span class="stat-pill"><strong id="playerCoins">0</strong><em>Xu</em></span>
+                    <span class="stat-pill"><strong id="playerTickets">0</strong><em>Ve</em></span>
+                </div>
+            </div>
+        </section>
+
+        <div class="title-ribbon">MAIN MENU</div>
+
+        <nav class="header-icons" aria-label="Dieu huong dau trang">
+            <button type="button" class="circle-icon" data-route="/shop" aria-label="Cua hang">
+                <span>🛒</span>
+            </button>
+            <button type="button" class="circle-icon" data-route="/lobby" aria-label="Menu">
+                <span>☰</span>
+            </button>
+            <button type="button" class="circle-icon" data-route="/settings" aria-label="Cai dat">
+                <span>⚙</span>
+            </button>
+            <button type="button" class="circle-icon close" data-route="/login" aria-label="Dong">
+                <span>✕</span>
+            </button>
+        </nav>
+    </header>
+
+    <main class="menu-layout">
+        <section class="cards-grid">
+            <article class="menu-card featured card-private">
+                <div class="card-illustration dice-stack">
+                    <div class="platform"></div>
+                    <div class="dice cube-one"></div>
+                    <div class="dice cube-two"></div>
+                </div>
+                <div class="card-title blue">PRIVATE TABLE</div>
+                <div class="action-row">
+                    <button type="button" class="action-button" id="createRoomButton">CREATE</button>
+                    <button type="button" class="action-button" id="joinRoomButton">JOIN</button>
+                </div>
+                <div class="action-row">
+                    <input type="text" id="roomCodeInput" class="room-code-input" placeholder="Enter room code" aria-label="Room code">
+                </div>
+                <p id="roomActionStatus" class="menu-status"></p>
+            </article>
+
+            <article class="menu-card featured card-play">
+                <div class="card-illustration globe-wrap">
+                    <div class="orbit orbit-a"></div>
+                    <div class="orbit orbit-b"></div>
+                    <div class="orbit orbit-c"></div>
+                    <div class="globe-core"></div>
+                </div>
+                <div class="card-title green">PLAY</div>
+                <div class="action-row">
+                    <button type="button" class="action-button" data-route="/lobby">SOLO</button>
+                    <button type="button" class="action-button" data-route="/lobby">+ FRIEND</button>
+                </div>
+            </article>
+
+            <article class="menu-card featured card-tournament" data-route="/tournament">
+                <div class="card-illustration champion-wrap">
+                    <div class="champion-portrait">🏆</div>
+                </div>
+                <div class="timer-badge">
+                    <span id="tournamentTitle">Tournament</span>
+                    <strong id="tournamentCountdown">00D:00H:00M</strong>
+                </div>
+                <div class="card-title pink">GREAT TOURNAMENT</div>
+            </article>
+
+            <article class="menu-card support" data-route="/map-editor">
+                <div class="card-illustration mini construction-scene">
+                    <div class="crane-arm"></div>
+                    <div class="crane-base"></div>
+                    <div class="small-house"></div>
+                </div>
+                <div class="card-title blue compact">MAP EDITOR</div>
+            </article>
+
+            <article class="menu-card support" data-route="/shop">
+                <div class="card-illustration mini store-scene">
+                    <div class="store-roof"></div>
+                    <div class="store-body"></div>
+                    <div class="store-door"></div>
+                </div>
+                <div class="card-title yellow compact">SHOP</div>
+            </article>
+
+            <article class="menu-card support" data-route="/tutorial">
+                <div class="card-illustration mini tutorial-scene">
+                    <div class="screen"></div>
+                    <div class="book-stack"></div>
+                    <div class="play-mark">▶</div>
+                </div>
+                <div class="card-title blue compact">TUTORIAL</div>
+            </article>
+        </section>
+
+        <aside class="side-toolbar">
+            <button type="button" class="side-icon" aria-label="Hop thu">
+                <span>✉</span>
+            </button>
+            <button type="button" class="side-icon" aria-label="Lien ket dien thoai">
+                <span>📱</span>
+            </button>
+            <button type="button" class="side-icon" aria-label="Tin tuc">
+                <span>📰</span>
+            </button>
+            <button type="button" class="side-icon notify" aria-label="Thong bao">
+                <span>🔔</span>
+            </button>
+        </aside>
+    </main>
+</div>
+<script src="/js/main-menu.js"></script>
+</body>
+</html>

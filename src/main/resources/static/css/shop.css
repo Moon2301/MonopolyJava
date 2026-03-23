@@ -1,0 +1,104 @@
+:root {
+    --text: #f8f8ff;
+    --muted: rgba(248, 248, 255, 0.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Outfit", sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at top left, rgba(255, 119, 81, 0.28), transparent 24%),
+        radial-gradient(circle at top right, rgba(97, 120, 255, 0.28), transparent 24%),
+        linear-gradient(145deg, #120f31, #1e1743 50%, #2a1043);
+}
+
+.shop-page {
+    padding: 32px;
+}
+
+.shop-header {
+    margin-bottom: 24px;
+}
+
+.section-tag {
+    margin: 0 0 8px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 0.76rem;
+}
+
+.shop-header h1 {
+    margin: 0;
+    font-size: 3rem;
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 22px;
+}
+
+.shop-card {
+    padding: 18px;
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 22px 50px rgba(0, 0, 0, 0.24);
+}
+
+.hero-image {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    border-radius: 22px;
+    margin-bottom: 16px;
+    background-size: cover;
+    background-position: center;
+}
+
+.hero-a { background: linear-gradient(135deg, #7486ff, #ff7d6a); }
+.hero-b { background: linear-gradient(135deg, #5dd8ff, #4978ff); }
+.hero-c { background: linear-gradient(135deg, #ff6db0, #ff9c4a); }
+.hero-d { background: linear-gradient(135deg, #634bff, #21153d); }
+.hero-e { background: linear-gradient(135deg, #38d39f, #4d7eff); }
+.hero-f { background: linear-gradient(135deg, #ffd15c, #ff7e5f); }
+
+.shop-card h2 {
+    margin: 0 0 8px;
+}
+
+.shop-card p {
+    margin: 0 0 16px;
+    color: #ffd46c;
+    font-weight: 600;
+}
+
+.shop-card button {
+    width: 100%;
+    border: 0;
+    border-radius: 16px;
+    padding: 15px;
+    font: inherit;
+    font-weight: 700;
+    color: white;
+    background: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 22px rgba(105, 128, 255, 0.18);
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.shop-card button:hover {
+    transform: translateY(-2px) scale(1.01);
+    background: rgba(255, 255, 255, 0.18);
+}
+
+@media (max-width: 640px) {
+    .shop-page {
+        padding: 18px;
+    }
+}

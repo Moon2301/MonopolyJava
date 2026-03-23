@@ -31,24 +31,41 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+
+                                // AUTH API
                                 "/api/auth/**",
+
+                                // LOGIN / REGISTER PAGES
                                 "/login",
-                                "/login.html",
                                 "/register",
-                                "/register.html",
                                 "/auth/**",
+
+                                // MAIN GAME UI PAGES
+                                "/home",
+                                "/home/**",
+                                "/private-table",
+                                "/game-board",
+                                "/map-editor",
+                                "/shop",
+
+                                // ADMIN PAGE
+                                "/admin",
+
+                                // STATIC FILES
                                 "/css/**",
                                 "/js/**",
-                                "/images/**",
-                                "/admin/**"
+                                "/images/**"
+
                         ).permitAll()
 
+                        // ADMIN API
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
+                        // ALL OTHER API REQUIRE AUTH
                         .anyRequest().authenticated()
                 )
 
-                // JWT filter
+                // JWT FILTER
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

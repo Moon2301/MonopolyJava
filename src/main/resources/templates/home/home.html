@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monopoly - Home</title>
+    <title>Monopoly - Trang Chủ</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -39,10 +39,10 @@
                 <div class="flex items-center gap-4">
                     <div class="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-xs font-bold text-gray-700">
                         <i class="ph ph-user"></i>
-                        <span id="userEmailDisplay">Tycoon</span>
+                        <span id="userEmailDisplay">Đại Gia</span>
                     </div>
                     <button id="logoutBtn" class="text-sm font-bold text-red-600 hover:text-red-700 transition-colors">
-                        Logout
+                        Đăng xuất
                     </button>
                 </div>
             </div>
@@ -56,36 +56,36 @@
             <!-- Dashboard Column -->
             <div class="lg:col-span-2 space-y-6">
                 <div class="clean-card rounded-2xl p-8">
-                    <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Welcome Back!</h1>
-                    <p class="text-gray-500 mb-8">Ready for your next move on the board?</p>
+                    <h1 class="text-4xl font-extrabold text-gray-900 mb-2">Chào Mừng Trở Lại!</h1>
+                    <p class="text-gray-500 mb-8">Sẵn sàng cho nước đi tiếp theo trên bàn cờ chưa?</p>
                     
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <button class="p-6 bg-green-600 text-white rounded-xl shadow-lg hover:bg-green-700 transition-all flex items-center gap-4">
                             <i class="ph ph-play-circle text-4xl"></i>
                             <div class="text-left">
-                                <div class="font-bold text-lg">Start Game</div>
-                                <div class="text-xs text-green-100">Find a match now</div>
+                                <div class="font-bold text-lg">Bắt Đầu Chơi</div>
+                                <div class="text-xs text-green-100">Tìm trận ngay bây giờ</div>
                             </div>
                         </button>
                         <button class="p-6 bg-white border border-gray-200 text-gray-900 rounded-xl shadow hover:bg-gray-50 transition-all flex items-center gap-4">
                             <i class="ph ph-users text-4xl text-blue-600"></i>
                             <div class="text-left">
-                                <div class="font-bold text-lg">Friends</div>
-                                <div class="text-xs text-gray-500">3 online now</div>
+                                <div class="font-bold text-lg">Bạn Bè</div>
+                                <div class="text-xs text-gray-500">3 người đang online</div>
                             </div>
                         </button>
                     </div>
                 </div>
 
                 <div class="clean-card rounded-2xl p-6">
-                    <h2 class="text-lg font-bold text-gray-900 mb-4">Recent Actvity</h2>
+                    <h2 class="text-lg font-bold text-gray-900 mb-4">Hoạt Động Gần Đây</h2>
                     <div class="space-y-4">
                         <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold">W</div>
                                 <div>
-                                    <div class="font-bold text-sm">Won vs Player_X</div>
-                                    <div class="text-xs text-gray-500">2 hours ago</div>
+                                    <div class="font-bold text-sm">Thắng trước Người_chơi_X</div>
+                                    <div class="text-xs text-gray-500">2 giờ trước</div>
                                 </div>
                             </div>
                             <div class="font-bold text-green-600">+$250</div>
@@ -97,7 +97,7 @@
             <!-- Stats Column -->
             <div class="space-y-6">
                 <div class="clean-card rounded-2xl p-6">
-                    <div class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Your Balance</div>
+                    <div class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Số Dư Của Bạn</div>
                     <div class="text-4xl font-black text-gray-900 mb-2">$14,250</div>
                     <div class="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div class="h-full bg-yellow-400 w-3/4"></div>
@@ -105,20 +105,20 @@
                 </div>
 
                 <div class="clean-card rounded-2xl p-6">
-                    <div class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Current Rank</div>
+                    <div class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Xếp Hạng Hiện Tại</div>
                     <div class="flex items-center gap-4">
                         <div class="w-12 h-12 bg-purple-600 text-white rounded-lg flex items-center justify-center text-2xl">
                             <i class="ph ph-crown"></i>
                         </div>
                         <div>
-                            <div class="font-extrabold text-gray-900">MASTER</div>
-                            <div class="text-xs text-gray-500 underline cursor-pointer">View Leaderboard</div>
+                            <div class="font-extrabold text-gray-900">CAO THỦ</div>
+                            <div class="text-xs text-gray-500 underline cursor-pointer">Xem bảng xếp hạng</div>
                         </div>
                     </div>
                 </div>
                 
                 <button class="w-full py-3 border border-gray-200 rounded-xl font-bold text-gray-600 hover:bg-white hover:shadow transition-all">
-                    Profile Settings
+                    Cài Đặt Hồ Sơ
                 </button>
             </div>
 
@@ -130,13 +130,13 @@
         document.addEventListener('DOMContentLoaded', () => {
             const token = localStorage.getItem('authToken');
             if (!token) {
-                window.location.replace('/auth/login.html');
+                window.location.replace('/login');
                 return;
             }
 
             try {
                 const payload = JSON.parse(atob(token.split('.')[1]));
-                document.getElementById('userEmailDisplay').textContent = payload.sub || 'Tycoon';
+                document.getElementById('userEmailDisplay').textContent = payload.sub || 'Đại Gia';
             } catch (e) {
                 console.error("Token format error", e);
             }
@@ -144,7 +144,7 @@
             document.getElementById('logoutBtn').addEventListener('click', () => {
                 localStorage.removeItem('authToken');
                 localStorage.removeItem('userRole');
-                window.location.href = '/auth/login.html';
+                window.location.href = '/login';
             });
         });
     </script>
