@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monopoly - Admin Console</title>
+    <title>Monopoly - Bảng Điều Khiển Quản Trị</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
@@ -46,56 +46,56 @@
 <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
     <div class="p-6 border-b border-gray-200 flex items-center gap-3">
         <i class="ph ph-shield-check text-2xl text-green-600"></i>
-        <span class="font-black text-xl tracking-tight">ADMIN</span>
+        <span class="font-black text-xl tracking-tight">QUẢN TRỊ</span>
     </div>
 
     <nav class="flex-grow py-6 overflow-y-auto">
         <button onclick="showTab('dashboard')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 active transition-all" data-tab="dashboard">
-            <i class="ph ph-chart-pie text-xl"></i> Dashboard
+            <i class="ph ph-chart-pie text-xl"></i> Tổng Quan
         </button>
         <button onclick="showTab('accounts')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="accounts">
-            <i class="ph ph-users text-xl"></i> Accounts
+            <i class="ph ph-users text-xl"></i> Tài Khoản
         </button>
         <button onclick="showTab('heroes')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="heroes">
-            <i class="ph ph-sword text-xl"></i> Heroes
+            <i class="ph ph-sword text-xl"></i> Tướng
         </button>
         <button onclick="showTab('skills')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="skills">
-            <i class="ph ph-lightning text-xl"></i> Skills
+            <i class="ph ph-lightning text-xl"></i> Kỹ Năng
         </button>
         <button onclick="showTab('maps')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="maps">
-            <i class="ph ph-map-trifold text-xl"></i> Maps
+            <i class="ph ph-map-trifold text-xl"></i> Bản Đồ
         </button>
         <button onclick="showTab('boardCells')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="boardCells">
-            <i class="ph ph-grid-four text-xl"></i> Board Cells
+            <i class="ph ph-grid-four text-xl"></i> Ô Bàn Cờ
         </button>
         <button onclick="showTab('cards')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="cards">
-            <i class="ph ph-cards text-xl"></i> Cards
+            <i class="ph ph-cards text-xl"></i> Thẻ
         </button>
         <button onclick="showTab('games')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="games">
-            <i class="ph ph-game-controller text-xl"></i> Games
+            <i class="ph ph-game-controller text-xl"></i> Ván Chơi
         </button>
 
         <button onclick="showTab('gamePlayers')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="gamePlayers">
-            <i class="ph ph-users-four text-xl"></i> Game Players
+            <i class="ph ph-users-four text-xl"></i> Người Chơi Trong Ván
         </button>
         <button onclick="showTab('userProfiles')" class="sidebar-item w-full flex items-center gap-3 px-6 py-4 font-bold text-gray-600 hover:bg-gray-50 transition-all" data-tab="userProfiles">
-            <i class="ph ph-users-four text-xl"></i> Profiles
+            <i class="ph ph-users-four text-xl"></i> Hồ Sơ
         </button>
 
     </nav>
 
     <div class="p-6 border-t border-gray-200">
         <button id="logoutBtn" class="flex items-center gap-2 text-red-600 font-bold text-sm hover:underline">
-            <i class="ph ph-sign-out"></i> Logout
+            <i class="ph ph-sign-out"></i> Đăng Xuất
         </button>
     </div>
 </aside>
 
 <div class="flex-grow flex flex-col overflow-hidden">
     <header class="bg-white border-b border-gray-200 h-20 flex items-center justify-between px-10">
-        <h2 id="tabTitle" class="text-2xl font-extrabold text-gray-900 tracking-tight">Dashboard Overview</h2>
+        <h2 id="tabTitle" class="text-2xl font-extrabold text-gray-900 tracking-tight">Tổng Quan Hệ Thống</h2>
         <div class="flex items-center gap-4">
-            <span id="adminEmail" class="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Admin</span>
+            <span id="adminEmail" class="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">Quản trị viên</span>
         </div>
     </header>
 
@@ -246,7 +246,7 @@
     const token = localStorage.getItem('authToken');
 
     if (!token || localStorage.getItem('userRole') !== 'ADMIN') {
-        window.location.replace('/auth/login.html');
+        window.location.replace('/login');
     }
 
     // --- HÀM MỚI: Tự động kéo dữ liệu bị lồng ghép ra ngoài ---
@@ -296,7 +296,7 @@
         const defs = COLUMN_DEFS[currentTab];
 
         head.innerHTML = `<tr>${defs.map(c => `<th>${c.label}</th>`).join('')}<th>Hành Động</th></tr>`;
-        container.innerHTML = '<tr><td colspan="100%" class="text-center py-10">Loading...</td></tr>';
+        container.innerHTML = '<tr><td colspan="100%" class="text-center py-10">Đang tải...</td></tr>';
 
         try {
             const res = await fetch(API_URLS[currentTab], { headers: { 'Authorization': `Bearer ${token}` } });
@@ -323,12 +323,12 @@
                 </tr>
             `).join('');
         } catch (e) {
-            container.innerHTML = '<tr><td colspan="100%" class="text-center text-red-500 py-10 italic">Failed to load data</td></tr>';
+            container.innerHTML = '<tr><td colspan="100%" class="text-center text-red-500 py-10 italic">Không thể tải dữ liệu</td></tr>';
         }
     }
 
     document.getElementById('addBtn').onclick = () => {
-        document.getElementById('modalTitle').textContent = `Add New ${currentTab.slice(0,-1)}`;
+        document.getElementById('modalTitle').textContent = `Thêm mới ${currentTab.slice(0,-1)}`;
         renderForm({});
         document.getElementById('modal').classList.remove('hidden');
     };
@@ -340,7 +340,7 @@
         // --- XỬ LÝ DỮ LIỆU CHO FORM ---
         item = normalizeItem(item);
 
-        document.getElementById('modalTitle').textContent = `Edit ${currentTab.slice(0,-1)}`;
+        document.getElementById('modalTitle').textContent = `Chỉnh sửa ${currentTab.slice(0,-1)}`;
         renderForm(item);
         document.getElementById('modal').classList.remove('hidden');
     }
@@ -400,7 +400,7 @@
     };
 
     async function deleteItem(id) {
-        if (!confirm('Are you sure you want to delete this item?')) return;
+        if (!confirm('Bạn có chắc muốn xóa mục này không?')) return;
         await fetch(`${API_URLS[currentTab]}/${id}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
@@ -411,13 +411,13 @@
     function closeModal() { document.getElementById('modal').classList.add('hidden'); }
     document.getElementById('logoutBtn').onclick = () => {
         localStorage.clear();
-        window.location.href = '/auth/login.html';
+        window.location.href = '/login';
     };
 
     // Initialize display
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
-        document.getElementById('adminEmail').textContent = payload.sub || 'Admin';
+        document.getElementById('adminEmail').textContent = payload.sub || 'Quản trị viên';
     } catch(e) {}
 
     showTab('dashboard');

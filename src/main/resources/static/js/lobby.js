@@ -1,0 +1,215 @@
+document.addEventListener("DOMContentLoaded", () => {
+    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+    const roomList = document.getElementById("roomList");
+    const lobbyStatus = document.getElementById("lobbyStatus");
+    const createRoomButton = document.getElementById("createRoomButton");
+    const joinRoomButton = document.getElementById("joinRoomButton");
+    const createRoomName = document.getElementById("createRoomName");
+    const createVisibility = document.getElementById("createVisibility");
+    const createPassword = document.getElementById("createPassword");
+    const createMode = document.getElementById("createMode");
+    const createMaxPlayers = document.getElementById("createMaxPlayers");
+    const joinRoomCode = document.getElementById("joinRoomCode");
+    const joinRoomPassword = document.getElementById("joinRoomPassword");
+
+    const setStatus = (message, isError = false) => {
+        if (!lobbyStatus) {
+            return;
+        }
+        lobbyStatus.textContent = message;
+        lobbyStatus.style.color = isError ? "#ffd2d2" : "rgba(247, 248, 255, 0.8)";
+    };
+
+    const getAuthHeaders = (includeJson = false) => {
+        const headers = {};
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+        if (includeJson) {
+            headers["Content-Type"] = "application/json";
+        }
+        return headers;
+    };
+
+    const handleUnauthorized = (response) => {
+        if (response.status === 401 || response.status === 403) {
+            setStatus("Phien dang nhap khong hop le. Vui long dang nhap lai.", true);
+            window.setTimeout(() => {
+                window.location.href = "/login";
+            }, 1200);
+            return true;
+        }
+        return false;
+    };
+
+    const renderRooms = (items) => {
+        if (!roomList) {
+            return;
+        }
+
+        if (!items || items.length === 0) {
+            roomList.innerHTML = `
+                <article class="room-card">
+                    <strong>Chua co phong cho</strong>
+                    <span>Hay tao phong dau tien de bat dau.</span>
+                </article>
+            `;
+            return;
+        }
+
+        roomList.innerHTML = items.map((room) => `
+            <article class="room-card">
+                <strong>${room.name}</strong>
+                <span>Che do: ${room.mode}</span>
+                <span>${room.currentPlayers} / ${room.maxPlayers} nguoi choi</span>
+                <button
+                    type="button"
+                    class="accent join-room-button"
+                    data-room-code="${room.roomCode}"
+                    data-room-visibility="${room.visibility}"
+                >
+                    JOIN
+                </button>
+            </article>
+        `).join("");
+    };
+
+    const loadRooms = async () => {
+        if (!token) {
+            setStatus("Ban chua dang nhap.", true);
+            return;
+        }
+
+        setStatus("Dang tai danh sach phong...");
+        try {
+            const response = await fetch("/api/rooms?status=WAITING&page=0&size=20", {
+                headers: getAuthHeaders()
+            });
+
+            if (handleUnauthorized(response)) {
+                return;
+            }
+            if (!response.ok) {
+                throw new Error("Khong the tai danh sach phong.");
+            }
+
+            const data = await response.json();
+            renderRooms(data.items || []);
+            setStatus(`Da tai ${data.items?.length || 0} phong.`);
+        } catch (error) {
+            console.error(error);
+            setStatus(error.message || "Khong the tai danh sach phong.", true);
+        }
+    };
+
+    const createRoom = async () => {
+        const payload = {
+            name: createRoomName?.value?.trim() || "Phong cua toi",
+            visibility: createVisibility?.value || "PRIVATE",
+            password: createPassword?.value || "",
+            mode: createMode?.value || "QUICK_GAME",
+            maxPlayers: Number(createMaxPlayers?.value || 4)
+        };
+
+        if (payload.visibility === "PRIVATE" && !payload.password) {
+            setStatus("Phong rieng tu can mat khau.", true);
+            return;
+        }
+
+        createRoomButton.disabled = true;
+        setStatus("Dang tao phong...");
+        try {
+            const response = await fetch("/api/rooms", {
+                method: "POST",
+                headers: getAuthHeaders(true),
+                body: JSON.stringify(payload)
+            });
+
+            if (handleUnauthorized(response)) {
+                return;
+            }
+            if (!response.ok) {
+                throw new Error("Tao phong that bai.");
+            }
+
+            const data = await response.json();
+            window.location.href = data.redirectUrl;
+        } catch (error) {
+            console.error(error);
+            setStatus(error.message || "Tao phong that bai.", true);
+        } finally {
+            createRoomButton.disabled = false;
+        }
+    };
+
+    const joinRoom = async (roomCode, password = "") => {
+        if (!roomCode) {
+            setStatus("Vui long nhap ma phong.", true);
+            return;
+        }
+
+        joinRoomButton.disabled = true;
+        setStatus("Dang tham gia phong...");
+        try {
+            const response = await fetch("/api/rooms/join", {
+                method: "POST",
+                headers: getAuthHeaders(true),
+                body: JSON.stringify({
+                    roomCode: roomCode.trim().toUpperCase(),
+                    password
+                })
+            });
+
+            if (handleUnauthorized(response)) {
+                return;
+            }
+            if (!response.ok) {
+                throw new Error("Khong the tham gia phong.");
+            }
+
+            const data = await response.json();
+            window.location.href = data.redirectUrl;
+        } catch (error) {
+            console.error(error);
+            setStatus(error.message || "Khong the tham gia phong.", true);
+        } finally {
+            joinRoomButton.disabled = false;
+        }
+    };
+
+    createVisibility?.addEventListener("change", () => {
+        if (!createPassword) {
+            return;
+        }
+        createPassword.disabled = createVisibility.value !== "PRIVATE";
+        if (createPassword.disabled) {
+            createPassword.value = "";
+        }
+    });
+
+    createRoomButton?.addEventListener("click", createRoom);
+    joinRoomButton?.addEventListener("click", () => joinRoom(joinRoomCode?.value, joinRoomPassword?.value || ""));
+
+    roomList?.addEventListener("click", (event) => {
+        const target = event.target.closest(".join-room-button");
+        if (!target) {
+            return;
+        }
+
+        const roomCode = target.getAttribute("data-room-code");
+        const visibility = target.getAttribute("data-room-visibility");
+        let password = "";
+
+        if (visibility === "PRIVATE") {
+            password = window.prompt("Nhap mat khau phong:") || "";
+        }
+
+        joinRoom(roomCode, password);
+    });
+
+    if (createPassword) {
+        createPassword.disabled = createVisibility?.value !== "PRIVATE";
+    }
+
+    loadRooms();
+});
