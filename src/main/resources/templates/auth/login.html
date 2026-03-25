@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monopoly - Login</title>
+    <title>Monopoly - Đăng Nhập</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
@@ -44,8 +44,8 @@
     <!-- Login Container -->
     <div class="clean-card rounded-xl w-full max-w-md p-8">
         <div class="text-center mb-10">
-            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Sign In</h1>
-            <p class="text-gray-500 mt-2">Welcome to Monopoly Online</p>
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Đăng Nhập</h1>
+            <p class="text-gray-500 mt-2">Chào mừng đến với Monopoly trực tuyến</p>
         </div>
         
         <form id="loginForm" class="space-y-6">
@@ -58,7 +58,7 @@
             </div>
             
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1" for="password">Password</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-1" for="password">Mật khẩu</label>
                 <div class="relative">
                     <i class="ph ph-lock-key absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="password" id="password" class="input-field w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-900 placeholder-gray-400" placeholder="••••••••" required>
@@ -66,16 +66,16 @@
             </div>
             
             <div id="loginError" class="text-red-600 text-sm font-medium hidden text-center bg-red-50 p-3 rounded-lg border border-red-200 uppercase tracking-tight">
-                Invalid credentials
+                Sai thông tin đăng nhập
             </div>
             
             <button type="submit" class="primary-btn w-full py-3 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all focus:ring-4 focus:ring-green-100 uppercase tracking-wider">
-                Sign In
+                Đăng Nhập
             </button>
             
             <p class="text-center text-sm text-gray-600">
-                Don't have an account? 
-                <a href="/auth/register.html" class="text-green-600 hover:text-green-700 font-bold ml-1 transition-colors">Sign Up</a>
+                Chưa có tài khoản?
+                <a href="/register" class="text-green-600 hover:text-green-700 font-bold ml-1 transition-colors">Đăng Ký</a>
             </p>
         </form>
     </div>
@@ -116,21 +116,21 @@
                  localStorage.setItem("userRole", data.role);
 
                  if (data.role === "ADMIN") {
-                     window.location.href = "/admin/index.html";
+                     window.location.href = "/admin";
                  } else {
-                     window.location.href = "/home/home.html";
+                     window.location.href = "/home";
                  }
 
              } else {
 
-                 loginError.textContent = data.error || "Login failed";
+                 loginError.textContent = data.error || "Đăng nhập thất bại";
                  loginError.classList.remove("hidden");
 
              }
 
          } catch (err) {
 
-             loginError.textContent = "Server connection error";
+             loginError.textContent = "Lỗi kết nối máy chủ";
              loginError.classList.remove("hidden");
 
          }

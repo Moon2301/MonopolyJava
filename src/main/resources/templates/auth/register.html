@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monopoly - Join Game</title>
+    <title>Monopoly - Đăng Ký</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
@@ -44,13 +44,13 @@
     <!-- Registration Container -->
     <div class="clean-card rounded-xl w-full max-w-md p-8">
         <div class="text-center mb-10">
-            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Create Account</h1>
-            <p class="text-gray-500 mt-2">Join the ultimate Monopoly experience</p>
+            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Tạo Tài Khoản</h1>
+            <p class="text-gray-500 mt-2">Tham gia trải nghiệm Monopoly đỉnh cao</p>
         </div>
         
         <form id="registerForm" class="space-y-5">
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1" for="username">Username</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-1" for="username">Tên người dùng</label>
                 <div class="relative">
                     <i class="ph ph-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="text" id="username" class="input-field w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-900 placeholder-gray-400" placeholder="MrMonopoly" required>
@@ -58,7 +58,7 @@
             </div>
 
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1" for="email">Email Address</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-1" for="email">Địa chỉ email</label>
                 <div class="relative">
                     <i class="ph ph-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="email" id="email" class="input-field w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-900 placeholder-gray-400" placeholder="your@email.com" required>
@@ -66,7 +66,7 @@
             </div>
             
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1" for="password">Password</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-1" for="password">Mật khẩu</label>
                 <div class="relative">
                     <i class="ph ph-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="password" id="password" class="input-field w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-900 placeholder-gray-400" placeholder="••••••••" required>
@@ -74,7 +74,7 @@
             </div>
 
             <div>
-                <label class="block text-sm font-semibold text-gray-700 mb-1" for="confirmPassword">Confirm Password</label>
+                <label class="block text-sm font-semibold text-gray-700 mb-1" for="confirmPassword">Xác nhận mật khẩu</label>
                 <div class="relative">
                     <i class="ph ph-check-circle absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg"></i>
                     <input type="password" id="confirmPassword" class="input-field w-full pl-10 pr-4 py-2.5 rounded-lg text-gray-900 placeholder-gray-400" placeholder="••••••••" required>
@@ -82,19 +82,19 @@
             </div>
             
             <div id="registerSuccess" class="text-green-600 text-sm font-medium hidden text-center bg-green-50 p-3 rounded-lg border border-green-200 uppercase tracking-tight">
-                Account created! Redirecting...
+                Tạo tài khoản thành công! Đang chuyển hướng...
             </div>
             <div id="registerError" class="text-red-600 text-sm font-medium hidden text-center bg-red-50 p-3 rounded-lg border border-red-200 uppercase tracking-tight">
-                An error occurred
+                Đã có lỗi xảy ra
             </div>
             
             <button type="submit" class="primary-btn w-full py-3 text-white font-bold rounded-lg shadow-md hover:shadow-lg transition-all focus:ring-4 focus:ring-red-100 uppercase tracking-wider mt-4">
-                Sign Up
+                Đăng Ký
             </button>
             
             <p class="text-center text-sm text-gray-600">
-                Already have an account? 
-                <a href="/auth/login.html" class="text-red-600 hover:text-red-700 font-bold ml-1 transition-colors">Log In</a>
+                Đã có tài khoản?
+                <a href="/login" class="text-red-600 hover:text-red-700 font-bold ml-1 transition-colors">Đăng Nhập</a>
             </p>
         </form>
     </div>
@@ -117,7 +117,7 @@
                 const confirmPassword = document.getElementById('confirmPassword').value;
 
                 if (password !== confirmPassword) {
-                    registerError.textContent = 'Passwords do not match!';
+                    registerError.textContent = 'Mật khẩu xác nhận không khớp!';
                     registerError.classList.remove('hidden');
                     return;
                 }
@@ -134,14 +134,14 @@
                     if (res.ok) {
                         registerSuccess.classList.remove('hidden');
                         setTimeout(() => {
-                            window.location.href = '/login.html';
+                            window.location.href = '/login';
                         }, 2000);
                     } else {
-                        registerError.textContent = data.error || 'Registration failed';
+                        registerError.textContent = data.error || 'Đăng ký thất bại';
                         registerError.classList.remove('hidden');
                     }
                 } catch (err) {
-                    registerError.textContent = 'Server connection error';
+                    registerError.textContent = 'Lỗi kết nối máy chủ';
                     registerError.classList.remove('hidden');
                 }
             });

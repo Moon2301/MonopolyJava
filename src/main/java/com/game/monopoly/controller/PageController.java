@@ -8,21 +8,41 @@ public class PageController {
 
     @GetMapping("/login")
     public String loginPage() {
-        return "redirect:/auth/login.html";
+        return "auth/login";
     }
 
     @GetMapping("/register")
     public String registerPage() {
-        return "redirect:/auth/register.html";
+        return "auth/register";
     }
 
     @GetMapping("/home")
-    public String homePage() {
-        return "redirect:/home/home.html";
+    public String mainMenu() {
+        return "main-menu";
+    }
+
+    @GetMapping("/private-table")
+    public String privateTable() {
+        return "private-table";
+    }
+
+    @GetMapping("/game-board")
+    public String gameBoard() {
+        return "game-board";
+    }
+
+    @GetMapping("/map-editor")
+    public String mapEditor() {
+        return "map-editor";
+    }
+
+    @GetMapping("/shop")
+    public String shop() {
+        return "shop";
     }
 
     @GetMapping("/admin")
     public String adminPage() {
-        return "redirect:/admin/index.html";
+        return "admin/index";
     }
 }
