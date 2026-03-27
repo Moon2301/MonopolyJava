@@ -21,6 +21,16 @@ public class PageController {
         return "main-menu";
     }
 
+    @GetMapping("/profile")
+    public String profile() {
+        return "home/profile";
+    }
+
+    @GetMapping("/game-history")
+    public String gameHistory() {
+        return "home/game-history";
+    }
+
     @GetMapping("/private-table")
     public String privateTable() {
         return "private-table";

@@ -9,4 +9,6 @@ public interface GamePlayerRepository extends JpaRepository<GamePlayer, Long> {
 
     List<GamePlayer> findByGameId(Long gameId);
 
+    List<GamePlayer> findByUserProfileId(Long userProfileId);
+
 }

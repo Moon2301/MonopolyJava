@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+    const accountId = localStorage.getItem("accountId");
     const roomList = document.getElementById("roomList");
     const lobbyStatus = document.getElementById("lobbyStatus");
     const createRoomButton = document.getElementById("createRoomButton");
@@ -22,8 +22,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const getAuthHeaders = (includeJson = false) => {
         const headers = {};
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
+        if (accountId) {
+            headers["X-Account-Id"] = accountId;
         }
         if (includeJson) {
             headers["Content-Type"] = "application/json";
@@ -75,7 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const loadRooms = async () => {
-        if (!token) {
+        if (!accountId) {
             setStatus("Ban chua dang nhap.", true);
             return;
         }

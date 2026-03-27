@@ -110,9 +110,9 @@
 
              const data = await res.json();
 
-             if (res.ok && data.token) {
+             if (res.ok && data.accountId) {
 
-                 localStorage.setItem("authToken", data.token);
+                 localStorage.setItem("accountId", String(data.accountId));
                  localStorage.setItem("userRole", data.role);
 
                  if (data.role === "ADMIN") {

@@ -188,6 +188,7 @@ body {
 .header-icons {
     display: flex;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 .circle-icon,
@@ -209,6 +210,10 @@ body {
 
 .circle-icon.close {
     background: linear-gradient(180deg, #ff458f, #dc1a76);
+}
+
+.circle-icon.profile-icon {
+    background: linear-gradient(180deg, #1FB25A, #16954a);
 }
 
 .menu-layout {

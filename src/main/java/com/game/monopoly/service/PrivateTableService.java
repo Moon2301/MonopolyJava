@@ -3,7 +3,6 @@ package com.game.monopoly.service;
 import com.game.monopoly.dto.PrivateTableResponse;
 import com.game.monopoly.dto.RoomDetailResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -12,8 +11,8 @@ public class PrivateTableService {
 
     private final RoomService roomService;
 
-    public PrivateTableResponse getPrivateTable(Long roomId, Authentication authentication) {
-        RoomDetailResponse roomDetail = roomService.getRoomDetail(roomId, authentication);
+    public PrivateTableResponse getPrivateTable(Long roomId, Long accountId) {
+        RoomDetailResponse roomDetail = roomService.getRoomDetail(roomId, accountId);
 
         return PrivateTableResponse.builder()
                 .room(PrivateTableResponse.RoomDto.builder()

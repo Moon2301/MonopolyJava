@@ -1,5 +1,5 @@
 window.onload = () => {
-    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+    const accountId = localStorage.getItem("accountId");
     const playerAvatar = document.getElementById("playerAvatar");
     const playerName = document.getElementById("playerName");
     const playerCoins = document.getElementById("playerCoins");
@@ -24,8 +24,8 @@ window.onload = () => {
 
     const getHeaders = (includeJson = false) => {
         const headers = {};
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
+        if (accountId) {
+            headers["X-Account-Id"] = accountId;
         }
         if (includeJson) {
             headers["Content-Type"] = "application/json";
@@ -101,7 +101,7 @@ window.onload = () => {
     };
 
     const loadHomeSummary = async () => {
-        if (!token) {
+        if (!accountId) {
             window.location.href = "/login";
             return;
         }

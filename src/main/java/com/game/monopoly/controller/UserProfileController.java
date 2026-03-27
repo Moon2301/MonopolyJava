@@ -43,6 +43,7 @@ public class UserProfileController {
                 .orElseThrow(() -> new RuntimeException("UserProfile not found"));
 
         user.setUsername(updated.getUsername());
+        user.setAvatarUrl(updated.getAvatarUrl());
         user.setGold(updated.getGold());
         user.setDiamonds(updated.getDiamonds());
         user.setRankPoints(updated.getRankPoints());

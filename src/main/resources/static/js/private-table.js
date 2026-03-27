@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+    const accountId = localStorage.getItem("accountId");
     const roomId = new URLSearchParams(window.location.search).get("roomId");
 
     const playerName = document.getElementById("playerName");
@@ -32,8 +32,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const getHeaders = (includeJson = false) => {
         const headers = {};
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
+        if (accountId) {
+            headers["X-Account-Id"] = accountId;
         }
         if (includeJson) {
             headers["Content-Type"] = "application/json";
@@ -271,7 +271,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const loadRoom = async () => {
-        if (!token) {
+        if (!accountId) {
             setStatus("Ban chua dang nhap.", true);
             return;
         }

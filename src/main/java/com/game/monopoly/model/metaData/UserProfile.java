@@ -37,6 +37,9 @@ public class UserProfile {
     @Column(name = "rank_tier", nullable = false, length = 50)
     private String rankTier = "BRONZE";
 
+    @Column(name = "avatar_url", length = 500)
+    private String avatarUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
