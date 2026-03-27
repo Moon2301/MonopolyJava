@@ -13,44 +13,45 @@
 <main class="profile-page">
     <section class="panel hero-panel">
         <div class="profile-head">
-            <div class="avatar">P</div>
-            <div>
-                <p class="section-tag">Hồ sơ người chơi</p>
-                <h1>Tên người chơi</h1>
-                <span class="coin-badge">18.450 Xu</span>
+            <div class="avatar-wrap">
+                <div class="avatar" id="profileAvatar">P</div>
+                <button type="button" id="editAvatarButton" class="edit-avatar-btn">
+                    Sửa avatar
+                </button>
+                <input type="file" id="avatarFileInput" class="avatar-file-input" accept="image/*" hidden>
+                <p id="avatarStatus" class="avatar-status" aria-live="polite"></p>
             </div>
+            <div>
+                <p class="section-tag">Hồ sơ người dùng</p>
+                <h1 id="profileUsername">Tên người chơi</h1>
+                <div class="badges-row">
+                    <span id="profileCoins" class="coin-badge">0 Xu</span>
+                    <span id="profileTickets" class="coin-badge tickets-badge">0 Vé</span>
+                </div>
+
+                <div class="profile-actions">
+                    <a class="profile-action-link" href="/game-history">Lịch sử đấu</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="equipped-character-card">
+        <p class="section-tag">Nhân vật đang sử dụng</p>
+        <div class="equipped-character-content">
+            <img id="equippedCharacterImage" class="equipped-character-image" alt="Hình nhân vật">
+            <div id="equippedCharacterName" class="equipped-character-name">-</div>
         </div>
     </section>
 
     <section class="panel stats-panel">
         <p class="section-tag">Thống kê</p>
         <div class="stats-grid">
-            <div class="stat-card"><strong>128</strong><span>Trận đấu</span></div>
-            <div class="stat-card"><strong>67%</strong><span>Tỷ lệ thắng</span></div>
-            <div class="stat-card"><strong>42</strong><span>Tài sản đã thắng</span></div>
-            <div class="stat-card"><strong>12</strong><span>Giải đấu</span></div>
+            <div class="stat-card"><strong id="statMatches">0</strong><span>Trận đấu</span></div>
+            <div class="stat-card"><strong id="statWinRate">0%</strong><span>Tỷ lệ thắng</span></div>
+            <div class="stat-card"><strong id="statRankTier">-</strong><span>Hạng</span></div>
         </div>
     </section>
-
-    <section class="panel inventory-panel">
-        <p class="section-tag">Kho đồ</p>
-        <div class="inventory-grid">
-            <div class="inventory-item">Xúc xắc vàng</div>
-            <div class="inventory-item">Quân cờ neon</div>
-            <div class="inventory-item">Giao diện bàn cờ VIP</div>
-            <div class="inventory-item">Gói thẻ may mắn</div>
-        </div>
-    </section>
-
-    <aside class="panel achievements-panel">
-        <p class="section-tag">Thành tích</p>
-        <div class="achievement-list">
-            <div class="achievement">Chiến thắng đầu tiên</div>
-            <div class="achievement">Nhà sưu tầm tài sản</div>
-            <div class="achievement">Bậc thầy tiền thuê</div>
-            <div class="achievement">Vào chung kết giải đấu</div>
-        </div>
-    </aside>
 </main>
 <script src="/js/profile.js"></script>
 </body>

@@ -13,6 +13,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -20,7 +23,6 @@ public class AuthService {
     private final AccountRepository accountRepository;
     private final UserProfileRepository userProfileRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
 
     @Transactional
     public void register(RegisterRequest request) {
@@ -59,12 +61,12 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
             throw new RuntimeException("Invalid email or password");
         }
-        String token = jwtService.generateToken(account.getEmail());
-        
-        java.util.Map<String, Object> response = new java.util.HashMap<>();
-        response.put("token", token);
-        response.put("role", account.getRole().name()); // USER or ADMIN
-        
+
+        Map<String, Object> response = new HashMap<>();
+        // Bỏ JWT: trả về accountId để frontend lưu vào localStorage
+        response.put("accountId", account.getAccountId());
+        response.put("role", account.getRole().name()); // USER or ADMIN (giữ lại nếu UI cần)
+
         return response;
     }
 

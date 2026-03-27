@@ -32,6 +32,7 @@ public class UserProfileService {
         UserProfile existing = getById(id);
 
         existing.setUsername(updated.getUsername());
+        existing.setAvatarUrl(updated.getAvatarUrl());
         existing.setGold(updated.getGold());
         existing.setDiamonds(updated.getDiamonds());
         existing.setRankPoints(updated.getRankPoints());
