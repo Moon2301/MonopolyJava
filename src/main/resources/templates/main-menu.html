@@ -16,7 +16,7 @@
     <div class="backdrop-shape shape-c"></div>
 
     <header class="top-header">
-        <section class="player-banner">
+        <section class="player-banner" data-route="/profile" aria-label="Hồ sơ người dùng" title="Hồ sơ người dùng">
             <div class="player-avatar-frame">
                 <img class="player-avatar" id="playerAvatar" src="/images/avatar-default.png" alt="Avatar nguoi choi">
             </div>
@@ -31,23 +31,6 @@
 
         <div class="title-ribbon">MAIN MENU</div>
 
-        <nav class="header-icons" aria-label="Dieu huong dau trang">
-            <button type="button" class="circle-icon" data-route="/shop" aria-label="Cua hang">
-                <span>🛒</span>
-            </button>
-            <button type="button" class="circle-icon" data-route="/lobby" aria-label="Menu">
-                <span>☰</span>
-            </button>
-            <button type="button" class="circle-icon" data-route="/settings" aria-label="Cai dat">
-                <span>⚙</span>
-            </button>
-            <button type="button" class="circle-icon profile-icon" data-route="/profile" aria-label="Hồ sơ người dùng" title="Hồ sơ người dùng">
-                <span>👤</span>
-            </button>
-            <button type="button" class="circle-icon close" data-route="/login" aria-label="Dong">
-                <span>✕</span>
-            </button>
-        </nav>
     </header>
 
     <main class="menu-layout">
@@ -83,26 +66,6 @@
                 </div>
             </article>
 
-            <article class="menu-card featured card-tournament" data-route="/tournament">
-                <div class="card-illustration champion-wrap">
-                    <div class="champion-portrait">🏆</div>
-                </div>
-                <div class="timer-badge">
-                    <span id="tournamentTitle">Tournament</span>
-                    <strong id="tournamentCountdown">00D:00H:00M</strong>
-                </div>
-                <div class="card-title pink">GREAT TOURNAMENT</div>
-            </article>
-
-            <article class="menu-card support" data-route="/map-editor">
-                <div class="card-illustration mini construction-scene">
-                    <div class="crane-arm"></div>
-                    <div class="crane-base"></div>
-                    <div class="small-house"></div>
-                </div>
-                <div class="card-title blue compact">MAP EDITOR</div>
-            </article>
-
             <article class="menu-card support" data-route="/shop">
                 <div class="card-illustration mini store-scene">
                     <div class="store-roof"></div>
@@ -123,6 +86,9 @@
         </section>
 
         <aside class="side-toolbar">
+            <button type="button" class="side-icon" data-route="/shop" aria-label="Cua hang">
+                <span>🛒</span>
+            </button>
             <button type="button" class="side-icon" aria-label="Hop thu">
                 <span>✉</span>
             </button>
@@ -132,7 +98,7 @@
             <button type="button" class="side-icon" aria-label="Tin tuc">
                 <span>📰</span>
             </button>
-            <button type="button" class="side-icon notify" aria-label="Thong bao">
+            <button type="button" class="side-icon" aria-label="Thong bao">
                 <span>🔔</span>
             </button>
         </aside>
