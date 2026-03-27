@@ -243,11 +243,20 @@
     };
 
     let currentTab = 'dashboard';
-    const token = localStorage.getItem('authToken');
+    const accountId = localStorage.getItem('accountId');
+    const userRole = localStorage.getItem('userRole');
 
-    if (!token || localStorage.getItem('userRole') !== 'ADMIN') {
+    if (!accountId || userRole !== 'ADMIN') {
         window.location.replace('/login');
     }
+
+    const getHeaders = (includeJson = false) => {
+        const headers = { 'X-Account-Id': accountId };
+        if (includeJson) {
+            headers['Content-Type'] = 'application/json';
+        }
+        return headers;
+    };
 
     // --- HÀM MỚI: Tự động kéo dữ liệu bị lồng ghép ra ngoài ---
     function normalizeItem(item) {
@@ -280,7 +289,7 @@
 
     async function loadDashboardStats() {
         try {
-            const res = await fetch('/api/admin/dashboard', { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch('/api/admin/dashboard', { headers: getHeaders() });
             const data = await res.json();
             document.getElementById('stat-users').textContent = data.totalUsers;
             document.getElementById('stat-games').textContent = data.activeGames;
@@ -299,7 +308,7 @@
         container.innerHTML = '<tr><td colspan="100%" class="text-center py-10">Đang tải...</td></tr>';
 
         try {
-            const res = await fetch(API_URLS[currentTab], { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch(API_URLS[currentTab], { headers: getHeaders() });
             let items = await res.json();
 
             // --- XỬ LÝ DỮ LIỆU Ở ĐÂY ---
@@ -334,7 +343,7 @@
     };
 
     async function openEditModal(id) {
-        const res = await fetch(`${API_URLS[currentTab]}/${id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const res = await fetch(`${API_URLS[currentTab]}/${id}`, { headers: getHeaders() });
         let item = await res.json();
 
         // --- XỬ LÝ DỮ LIỆU CHO FORM ---
@@ -391,7 +400,7 @@
 
         await fetch(url, {
             method,
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            headers: getHeaders(true),
             body: JSON.stringify(body)
         });
 
@@ -403,7 +412,7 @@
         if (!confirm('Bạn có chắc muốn xóa mục này không?')) return;
         await fetch(`${API_URLS[currentTab]}/${id}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: getHeaders()
         });
         loadTableData();
     }
@@ -415,10 +424,7 @@
     };
 
     // Initialize display
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        document.getElementById('adminEmail').textContent = payload.sub || 'Quản trị viên';
-    } catch(e) {}
+    document.getElementById('adminEmail').textContent = 'Quản trị viên';
 
     showTab('dashboard');
 </script>
