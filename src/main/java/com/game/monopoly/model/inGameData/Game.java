@@ -41,4 +41,8 @@ public class Game {
     private LocalDateTime createdAt;
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
+
+    /** Mốc bắt đầu đếm thời gian cho lượt người (chờ tung xúc xắc / hành động sau khi đi). */
+    @Column(name = "human_turn_started_at")
+    private LocalDateTime humanTurnStartedAt;
 }

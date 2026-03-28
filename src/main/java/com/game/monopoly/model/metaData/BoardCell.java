@@ -26,4 +26,8 @@ public class BoardCell {
 
     @Column(name = "max_house_level")
     private Integer maxHouseLevel;
+
+    /** Màu dải ô trên UI (hex), có thể null */
+    @Column(name = "color_hex", length = 16)
+    private String colorHex;
 }

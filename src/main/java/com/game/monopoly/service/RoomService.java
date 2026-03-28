@@ -1,6 +1,7 @@
 package com.game.monopoly.service;
 
 import com.game.monopoly.dto.*;
+import com.game.monopoly.MonopolyGameRules;
 import com.game.monopoly.model.enums.GameStatus;
 import com.game.monopoly.model.enums.RoomMode;
 import com.game.monopoly.model.enums.RoomStatus;
@@ -47,6 +48,7 @@ public class RoomService {
     private final GameRepository gameRepository;
     private final GamePlayerRepository gamePlayerRepository;
     private final PasswordEncoder passwordEncoder;
+    private final HeroOwnershipService heroOwnershipService;
 
     @Transactional(readOnly = true)
     public RoomListResponse getRooms(RoomStatus status, RoomVisibility visibility, int page, int size) {
@@ -269,6 +271,9 @@ public class RoomService {
         RoomPlayer roomPlayer = getRoomPlayer(roomId, account.getAccountId());
         Hero hero = heroRepository.findById(request.getHeroId())
                 .orElseThrow(() -> new RuntimeException("Hero not found"));
+        if (!heroOwnershipService.isHeroOwned(accountId, hero.getCharacterId())) {
+            throw new RuntimeException("Bạn chỉ được chọn nhân vật đã sở hữu");
+        }
 
         roomPlayer.setSelectedHeroId(hero.getCharacterId());
         roomPlayerRepository.save(roomPlayer);
@@ -341,7 +346,7 @@ public class RoomService {
                     .userProfileId(profile.getUserProfileId())
                     .characterId(player.getSelectedHeroId())
                     .turnOrder(player.getSlotIndex())
-                    .balance(profile.getGold())
+                    .balance(MonopolyGameRules.IN_GAME_STARTING_BALANCE)
                     .position(0)
                     .isBankrupt(false)
                     .isBot(false)
@@ -476,7 +481,7 @@ public class RoomService {
         return RoomDetailResponse.HeroDto.builder()
                 .heroId(heroId.longValue())
                 .name(heroName)
-                .imageUrl("/images/heroes/" + heroName.toLowerCase().replace(" ", "-") + ".png")
+                .imageUrl(null)
                 .build();
     }
 
@@ -551,4 +556,5 @@ public class RoomService {
         }
         throw new RuntimeException("No available slot");
     }
+
 }

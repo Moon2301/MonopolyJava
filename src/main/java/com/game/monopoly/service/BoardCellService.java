@@ -31,6 +31,7 @@ public class BoardCellService {
         cell.setPrice(request.getPrice());
         cell.setBaseRent(request.getBaseRent());
         cell.setMaxHouseLevel(request.getMaxHouseLevel());
+        cell.setColorHex(request.getColorHex());
 
         return boardCellRepository.save(cell);
     }
@@ -44,6 +45,7 @@ public class BoardCellService {
         cell.setPrice(request.getPrice());
         cell.setBaseRent(request.getBaseRent());
         cell.setMaxHouseLevel(request.getMaxHouseLevel());
+        cell.setColorHex(request.getColorHex());
 
         return boardCellRepository.save(cell);
     }

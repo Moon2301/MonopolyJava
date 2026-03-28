@@ -3,69 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monopoly - Game Board</title>
+    <title>Bàn cờ — Cờ tỷ phú</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/game-board.css">
 </head>
 <body>
-<main class="game-container">
-    <aside class="left-panel glass-panel">
-        <div class="panel-header">
-            <p class="eyebrow">Game Chat</p>
-            <h1>Ban Tro Chuyen</h1>
+<div id="yourTurnToast" class="your-turn-toast" role="status" aria-live="polite" aria-hidden="true" hidden>
+    <div class="your-turn-toast-inner glass-panel">
+        <span class="your-turn-toast-icon" aria-hidden="true">🎲</span>
+        <div class="your-turn-toast-text">
+            <strong>Đến lượt bạn!</strong>
+            <small>Tung xúc xắc để di chuyển</small>
         </div>
-        <div id="chatMessages" class="chat-messages"></div>
-        <form id="chatForm" class="chat-form">
-            <input id="chatInput" type="text" placeholder="Nhap tin nhan..." autocomplete="off">
-            <button type="submit">Gui</button>
-        </form>
-    </aside>
+    </div>
+</div>
+<div class="turn-top-banner glass-panel" id="turnTopBanner" role="status" aria-live="polite">
+    <div class="turn-top-banner-inner">
+        <div class="turn-top-line">
+            <span class="turn-top-eyebrow">Lượt hiện tại</span>
+            <strong id="turnBannerCurrent">—</strong>
+        </div>
+        <div class="turn-top-line turn-top-next">
+            <span class="turn-top-eyebrow">Lượt kế tiếp</span>
+            <strong id="turnBannerNext">—</strong>
+        </div>
+        <div class="turn-top-line turn-top-timer" aria-live="polite" hidden>
+            <span class="turn-top-eyebrow">Thời gian lượt</span>
+            <strong id="turnTimerLabel" class="turn-timer turn-timer--banner"></strong>
+        </div>
+    </div>
+</div>
+<main class="game-container">
+    <div class="side-rail side-rail--left">
+        <article class="player-info player-info--rail glass-panel" id="playerCard1"></article>
+        <article class="player-info player-info--rail glass-panel" id="playerCard3"></article>
+        <aside class="left-panel glass-panel">
+            <div class="panel-header">
+                <p class="eyebrow">Trò chuyện</p>
+                <h1>Bàn trò chuyện</h1>
+            </div>
+            <div id="chatMessages" class="chat-messages"></div>
+            <form id="chatForm" class="chat-form">
+                <input id="chatInput" type="text" placeholder="Nhập tin nhắn…" autocomplete="off">
+                <button type="submit">Gửi</button>
+            </form>
+        </aside>
+    </div>
 
     <section class="board-container">
-        <article class="player-info top-left glass-panel" id="playerCard1"></article>
-        <article class="player-info top-right glass-panel" id="playerCard2"></article>
-        <article class="player-info bottom-left glass-panel" id="playerCard3"></article>
-        <article class="player-info bottom-right glass-panel" id="playerCard4"></article>
-
         <div class="board-stage">
-            <div id="monopolyBoard" class="monopoly-board"></div>
-            <div id="playerTokens" class="player-tokens"></div>
+            <div id="moneyFxLayer" class="money-fx-layer" aria-hidden="true"></div>
+            <div id="monopolyBoard" class="monopoly-board">
+                <div id="playerTokens" class="player-tokens"></div>
+            </div>
 
             <div class="board-center">
-                <div class="center-brand">
-                    <span>MONOPOLY</span>
-                </div>
                 <div id="diceArea" class="dice-area">
-                    <div class="dice-label">Dice Roll</div>
+                    <div class="dice-label">Xúc xắc</div>
                     <div class="dice-cubes">
-                        <div id="die1" class="die">3</div>
-                        <div id="die2" class="die">5</div>
+                        <div id="die1" class="die die-3d" data-face="1" aria-label="Xúc xắc 1">
+                            <div class="die-pip-root" aria-hidden="true"></div>
+                        </div>
+                        <div id="die2" class="die die-3d" data-face="1" aria-label="Xúc xắc 2">
+                            <div class="die-pip-root" aria-hidden="true"></div>
+                        </div>
                     </div>
-                    <div id="diceTotal" class="dice-total">Tong: 8</div>
+                    <div id="diceTotal" class="dice-total">Tổng: 8</div>
                 </div>
             </div>
         </div>
     </section>
 
-    <aside class="right-panel glass-panel">
-        <div class="panel-header">
-            <p class="eyebrow">Game Actions</p>
-            <h2>Dieu Khien</h2>
-        </div>
-        <div class="action-stack">
-            <button id="rollDiceButton" type="button" class="action-button primary">Roll Dice</button>
-            <button type="button" class="action-button">End Turn</button>
-            <button type="button" class="action-button">Buy Property</button>
-            <button type="button" class="action-button">Upgrade</button>
-        </div>
-        <div class="turn-indicator">
-            <span class="turn-label">Current Turn</span>
-            <strong id="currentTurnLabel">Player1</strong>
-        </div>
-    </aside>
+    <div class="side-rail side-rail--right">
+        <article class="player-info player-info--rail glass-panel" id="playerCard2"></article>
+        <article class="player-info player-info--rail glass-panel" id="playerCard4"></article>
+        <aside class="cell-info-panel glass-panel">
+            <strong id="currentCellName" class="cell-info-name">-</strong>
+            <div class="cell-info-sections cell-info-sections--panel">
+                <div class="cell-info-section">
+                    <span class="cell-info-section__label">Giá / thuế khi vào ô</span>
+                    <p class="cell-info-section__value" id="currentCellPriceTax">-</p>
+                </div>
+                <div class="cell-info-section">
+                    <span class="cell-info-section__label">Cấp &amp; chi phí lên cấp kế</span>
+                    <p class="cell-info-section__value" id="currentCellUpgrade">-</p>
+                </div>
+                <div class="cell-info-section">
+                    <span class="cell-info-section__label">Chủ sở hữu</span>
+                    <p class="cell-info-section__value" id="currentCellOwnerBlock">-</p>
+                </div>
+            </div>
+        </aside>
+        <aside class="right-panel glass-panel">
+            <div class="panel-header">
+                <p class="eyebrow">Hành động</p>
+                <h2>Điều khiển</h2>
+            </div>
+            <div class="action-stack">
+                <button id="rollDiceButton" type="button" class="action-button primary">Tung xúc xắc</button>
+                <button id="endTurnButton" type="button" class="action-button">Kết thúc lượt</button>
+                <button id="buyPropertyButton" type="button" class="action-button">Mua đất</button>
+                <button id="upgradePropertyButton" type="button" class="action-button">Nâng cấp</button>
+            </div>
+            <p id="gameActionStatus" class="turn-label" style="margin:8px 0 0;">&nbsp;</p>
+        </aside>
+    </div>
 </main>
+<script src="/js/hero-system.js"></script>
 <script src="/js/game-board.js"></script>
 </body>
 </html>

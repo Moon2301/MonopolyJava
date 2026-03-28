@@ -1,18 +1,16 @@
 window.onload = () => {
     const accountId = localStorage.getItem("accountId");
+    const homeMenu = document.querySelector(".home-menu");
     const playerAvatar = document.getElementById("playerAvatar");
     const playerName = document.getElementById("playerName");
     const playerCoins = document.getElementById("playerCoins");
     const playerTickets = document.getElementById("playerTickets");
-    const tournamentTitle = document.getElementById("tournamentTitle");
-    const tournamentCountdown = document.getElementById("tournamentCountdown");
+    const toolbarToggleButton = document.getElementById("toolbarToggleButton");
     const roomCodeInput = document.getElementById("roomCodeInput");
     const createRoomButton = document.getElementById("createRoomButton");
     const joinRoomButton = document.getElementById("joinRoomButton");
     const roomActionStatus = document.getElementById("roomActionStatus");
     const routeTargets = document.querySelectorAll("[data-route]");
-
-    let countdownTimer = null;
 
     const setRoomStatus = (message, isError = false) => {
         if (!roomActionStatus) {
@@ -45,38 +43,8 @@ window.onload = () => {
 
     const formatNumber = (value) => new Intl.NumberFormat("vi-VN").format(value || 0);
 
-    const formatCountdown = (endsAt) => {
-        const diffMs = new Date(endsAt).getTime() - Date.now();
-        if (Number.isNaN(diffMs) || diffMs <= 0) {
-            return "00D:00H:00M";
-        }
-
-        const totalMinutes = Math.floor(diffMs / 60000);
-        const days = Math.floor(totalMinutes / (24 * 60));
-        const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
-        const minutes = totalMinutes % 60;
-        return `${String(days).padStart(2, "0")}D:${String(hours).padStart(2, "0")}H:${String(minutes).padStart(2, "0")}M`;
-    };
-
-    const startCountdown = (endsAt) => {
-        if (!tournamentCountdown) {
-            return;
-        }
-        if (countdownTimer) {
-            window.clearInterval(countdownTimer);
-        }
-
-        const updateCountdown = () => {
-            tournamentCountdown.textContent = formatCountdown(endsAt);
-        };
-
-        updateCountdown();
-        countdownTimer = window.setInterval(updateCountdown, 1000);
-    };
-
     const bindHomeSummary = (data) => {
         const player = data.player || {};
-        const tournament = data.tournament || {};
 
         if (playerAvatar) {
             playerAvatar.src = player.avatarUrl || "/images/avatar-default.png";
@@ -89,14 +57,6 @@ window.onload = () => {
         }
         if (playerTickets) {
             playerTickets.textContent = formatNumber(player.tickets);
-        }
-        if (tournamentTitle) {
-            tournamentTitle.textContent = tournament.title || "Tournament";
-        }
-        if (tournament.endsAt) {
-            startCountdown(tournament.endsAt);
-        } else if (tournamentCountdown) {
-            tournamentCountdown.textContent = "00D:00H:00M";
         }
     };
 
@@ -205,6 +165,10 @@ window.onload = () => {
                 window.location.href = route;
             }
         });
+    });
+
+    toolbarToggleButton?.addEventListener("click", () => {
+        homeMenu?.classList.toggle("toolbar-open");
     });
 
     createRoomButton?.addEventListener("click", createRoom);

@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const roomCode = document.getElementById("roomCode");
     const roomVisibilityIndicator = document.getElementById("roomVisibilityIndicator");
     const selectedHeroImage = document.getElementById("selectedHeroImage");
+    const selectedHeroSvgHost = document.getElementById("selectedHeroSvgHost");
     const selectedHeroName = document.getElementById("selectedHeroName");
     const heroEmptyState = document.getElementById("heroEmptyState");
     const heroList = document.getElementById("heroList");
@@ -21,6 +22,19 @@ document.addEventListener("DOMContentLoaded", () => {
     let roomState = null;
     let heroes = [];
     let pollingHandle = null;
+    let lastSelectedHeroUid = null;
+
+    const escapeHtml = (value) =>
+        String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+    const escapeAttr = (value) =>
+        String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/"/g, "&quot;")
+            .replace(/</g, "&lt;");
 
     const setStatus = (message, isError = false) => {
         if (!tableStatus) {
@@ -91,14 +105,43 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        if (window.HeroSystem && lastSelectedHeroUid) {
+            window.HeroSystem.stopIdle(lastSelectedHeroUid);
+            lastSelectedHeroUid = null;
+        }
+
+        if (selectedHeroSvgHost) {
+            selectedHeroSvgHost.innerHTML = "";
+            selectedHeroSvgHost.hidden = true;
+        }
+
         if (hero?.imageUrl) {
             selectedHeroImage.src = hero.imageUrl;
             selectedHeroImage.style.display = "block";
             heroEmptyState.style.display = "none";
             selectedHeroImage.onerror = () => {
                 selectedHeroImage.style.display = "none";
-                heroEmptyState.style.display = "grid";
+                if (hero?.name && window.HeroSystem && selectedHeroSvgHost) {
+                    lastSelectedHeroUid = `sel-${hero.heroId}`;
+                    selectedHeroSvgHost.innerHTML = window.HeroSystem.getSVG(hero.name, lastSelectedHeroUid);
+                    selectedHeroSvgHost.hidden = false;
+                    heroEmptyState.style.display = "none";
+                    window.HeroSystem.startIdle(lastSelectedHeroUid, 0);
+                } else {
+                    heroEmptyState.style.display = "grid";
+                }
             };
+            return;
+        }
+
+        if (hero?.name && window.HeroSystem && selectedHeroSvgHost) {
+            lastSelectedHeroUid = `sel-${hero.heroId}`;
+            selectedHeroSvgHost.innerHTML = window.HeroSystem.getSVG(hero.name, lastSelectedHeroUid);
+            selectedHeroSvgHost.hidden = false;
+            selectedHeroImage.style.display = "none";
+            heroEmptyState.style.display = "none";
+            selectedHeroImage.removeAttribute("src");
+            window.HeroSystem.startIdle(lastSelectedHeroUid, 0);
             return;
         }
 
@@ -118,24 +161,43 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const currentHeroId = roomState?.currentPlayer?.selectedHero?.heroId;
-        heroList.innerHTML = heroes.map((hero) => `
+        const useSvg = typeof window.HeroSystem !== "undefined";
+
+        heroList.innerHTML = heroes
+            .map((hero) => {
+                const uid = `list-${hero.heroId}`;
+                const svgBlock =
+                    useSvg && hero.name
+                        ? `<div class="hero-option-media hero-option-media--svg">${window.HeroSystem.getSVG(hero.name, uid)}</div>`
+                        : `<div class="hero-option-media">
+                    <img
+                        src="${escapeAttr(hero.imageUrl || "")}"
+                        alt="${escapeAttr(hero.name)}"
+                        onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"
+                    >
+                    <div class="hero-option-fallback" style="display:none;">${escapeHtml(hero.name)}</div>
+                </div>`;
+                return `
             <button
                 type="button"
                 class="hero-option ${currentHeroId === hero.heroId ? "active" : ""}"
                 data-action="select-hero"
                 data-hero-id="${hero.heroId}"
             >
-                <div class="hero-option-media">
-                    <img
-                        src="${hero.imageUrl || ""}"
-                        alt="${hero.name}"
-                        onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"
-                    >
-                    <div class="hero-option-fallback" style="display:none;">${hero.name}</div>
-                </div>
-                <div class="hero-option-name">${hero.name}</div>
+                ${svgBlock}
+                <div class="hero-option-name">${escapeHtml(hero.name)}</div>
             </button>
-        `).join("");
+        `;
+            })
+            .join("");
+
+        if (useSvg) {
+            window.requestAnimationFrame(() => {
+                heroes.forEach((hero, idx) => {
+                    window.HeroSystem.startIdle(`list-${hero.heroId}`, idx * 0.1);
+                });
+            });
+        }
     };
 
     const resolveSlotHero = (player) => {
@@ -169,18 +231,22 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span>${player.isHost ? "Host" : "Player"}</span>
                     </div>
                 </div>
-                <div class="slot-hero-media">
-                    ${heroImageUrl
-                        ? `
+                <div class="slot-hero-media ${window.HeroSystem && hero?.name && !heroImageUrl ? "slot-hero-media--svg" : ""}">
+                    ${
+                        heroImageUrl
+                            ? `
                             <img
                                 class="slot-hero-image"
-                                src="${heroImageUrl}"
-                                alt="${heroName}"
+                                src="${escapeAttr(heroImageUrl)}"
+                                alt="${escapeAttr(heroName)}"
                                 onerror="this.style.display='none';this.nextElementSibling.style.display='grid';"
                             >
-                            <div class="slot-hero-placeholder" style="display:none;">${heroName}</div>
+                            <div class="slot-hero-placeholder" style="display:none;">${escapeHtml(heroName)}</div>
                         `
-                        : `<div class="slot-hero-placeholder">No hero selected</div>`}
+                            : window.HeroSystem && hero?.name
+                              ? `<div class="slot-hero-svg-wrap">${window.HeroSystem.getSVG(hero.name, `slot-hero-${player.playerId}`)}</div>`
+                              : `<div class="slot-hero-placeholder">${escapeHtml(heroName)}</div>`
+                    }
                 </div>
                 <div class="slot-hero-name">${heroName}</div>
                 <div class="slot-ready ${readyClass}">${readyText}</div>
@@ -211,6 +277,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         playerSlots.innerHTML = slotMarkup.join("");
+        if (window.HeroSystem && playerSlots) {
+            window.requestAnimationFrame(() => {
+                (roomState?.players || []).forEach((pl, idx) => {
+                    window.HeroSystem.startIdle(`slot-hero-${pl.playerId}`, idx * 0.07);
+                });
+            });
+        }
     };
 
     const renderRoom = () => {
@@ -251,7 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const loadHeroes = async () => {
         try {
-            const response = await fetch("/api/heroes", {
+            const response = await fetch("/api/heroes/owned", {
                 headers: getHeaders()
             });
 
@@ -295,8 +368,13 @@ document.addEventListener("DOMContentLoaded", () => {
             roomState = await response.json();
             renderRoom();
         } catch (error) {
-            console.error(error);
-            setStatus(error.message || "Khong the tai thong tin phong.", true);
+            const netFail =
+                error instanceof TypeError &&
+                (String(error.message).includes("fetch") || String(error.message).includes("Failed to fetch"));
+            const msg = netFail
+                ? "Khong ket noi duoc server. Hay chay Spring Boot (vd: port 8080)."
+                : error.message || "Khong the tai thong tin phong.";
+            setStatus(msg, true);
         }
     };
 

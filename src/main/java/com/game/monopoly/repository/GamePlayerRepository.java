@@ -11,4 +11,8 @@ public interface GamePlayerRepository extends JpaRepository<GamePlayer, Long> {
 
     List<GamePlayer> findByUserProfileId(Long userProfileId);
 
+    List<GamePlayer> findByGameIdOrderByTurnOrderAsc(Long gameId);
+
+    java.util.Optional<GamePlayer> findByGameIdAndTurnOrder(Long gameId, Integer turnOrder);
+
 }

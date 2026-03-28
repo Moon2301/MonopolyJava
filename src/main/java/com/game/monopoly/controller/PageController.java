@@ -51,6 +51,11 @@ public class PageController {
         return "shop";
     }
 
+    @GetMapping("/play-vs-ai")
+    public String playVsAi() {
+        return "home/play-vs-ai";
+    }
+
     @GetMapping("/admin")
     public String adminPage() {
         return "admin/index";

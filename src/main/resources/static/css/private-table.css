@@ -387,6 +387,42 @@ body {
     object-fit: contain;
 }
 
+.hero-current-svg-host {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    line-height: 0;
+}
+
+.hero-current-svg-host svg {
+    width: 86%;
+    height: auto;
+    max-height: 100%;
+}
+
+.hero-option-media--svg {
+    line-height: 0;
+}
+
+.hero-option-media--svg svg {
+    width: 72px;
+    height: 88px;
+    max-width: 100%;
+}
+
+.slot-hero-media--svg {
+    display: grid;
+    place-items: center;
+    line-height: 0;
+}
+
+.slot-hero-svg-wrap svg {
+    width: 100px;
+    height: auto;
+    max-height: 200px;
+}
+
 .hero-empty-state {
     display: none;
     width: 100%;
