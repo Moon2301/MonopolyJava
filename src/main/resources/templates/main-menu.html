@@ -19,15 +19,12 @@
         <section class="player-banner">
             <div class="player-avatar-frame">
                 <img class="player-avatar" id="playerAvatar" src="/images/avatar-default.png" alt="Avatar nguoi choi">
-                <button type="button" class="avatar-profile-button" data-route="/profile" aria-label="Hồ sơ người dùng" title="Hồ sơ người dùng">
-                    <span>👤</span>
-                </button>
             </div>
             <div class="player-info">
                 <div class="player-name-ribbon" id="playerName">Nguoi choi</div>
                 <div class="player-stats">
-                    <span class="stat-pill coin-gold"><strong id="playerCoins">0</strong><em>🥇 Vàng</em></span>
-                    <span class="stat-pill coin-silver"><strong id="playerTickets">0</strong><em>🥈 Bạc</em></span>
+                    <span class="stat-pill"><strong id="playerCoins">0</strong><em>Xu</em></span>
+                    <span class="stat-pill"><strong id="playerTickets">0</strong><em>Ve</em></span>
                 </div>
             </div>
         </section>
@@ -38,8 +35,17 @@
             <button type="button" class="circle-icon" data-route="/shop" aria-label="Cua hang">
                 <span>🛒</span>
             </button>
-            <button type="button" class="circle-icon" id="toolbarToggleButton" aria-label="Mo thanh cong cu">
+            <button type="button" class="circle-icon" data-route="/lobby" aria-label="Menu">
                 <span>☰</span>
+            </button>
+            <button type="button" class="circle-icon" data-route="/settings" aria-label="Cai dat">
+                <span>⚙</span>
+            </button>
+            <button type="button" class="circle-icon profile-icon" data-route="/profile" aria-label="Hồ sơ người dùng" title="Hồ sơ người dùng">
+                <span>👤</span>
+            </button>
+            <button type="button" class="circle-icon close" data-route="/login" aria-label="Dong">
+                <span>✕</span>
             </button>
         </nav>
     </header>
@@ -77,6 +83,26 @@
                 </div>
             </article>
 
+            <article class="menu-card featured card-tournament" data-route="/tournament">
+                <div class="card-illustration champion-wrap">
+                    <div class="champion-portrait">🏆</div>
+                </div>
+                <div class="timer-badge">
+                    <span id="tournamentTitle">Tournament</span>
+                    <strong id="tournamentCountdown">00D:00H:00M</strong>
+                </div>
+                <div class="card-title pink">GREAT TOURNAMENT</div>
+            </article>
+
+            <article class="menu-card support" data-route="/map-editor">
+                <div class="card-illustration mini construction-scene">
+                    <div class="crane-arm"></div>
+                    <div class="crane-base"></div>
+                    <div class="small-house"></div>
+                </div>
+                <div class="card-title blue compact">MAP EDITOR</div>
+            </article>
+
             <article class="menu-card support" data-route="/shop">
                 <div class="card-illustration mini store-scene">
                     <div class="store-roof"></div>
@@ -84,17 +110,6 @@
                     <div class="store-door"></div>
                 </div>
                 <div class="card-title yellow compact">SHOP</div>
-            </article>
-
-            <article class="menu-card support" data-route="/play-vs-ai">
-                <div class="card-illustration mini bot-scene">
-                    <div class="bot-head"></div>
-                    <div class="bot-eye left"></div>
-                    <div class="bot-eye right"></div>
-                    <div class="bot-body"></div>
-                    <div class="bot-antenna"></div>
-                </div>
-                <div class="card-title green compact">CHƠI VỚI MÁY</div>
             </article>
 
             <article class="menu-card support" data-route="/tutorial">

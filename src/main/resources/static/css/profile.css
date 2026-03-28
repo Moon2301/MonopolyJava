@@ -157,6 +157,9 @@ body {
 
 .profile-actions {
     margin-top: 14px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .profile-action-link {
@@ -175,6 +178,12 @@ body {
 .profile-action-link:hover {
     transform: translateY(-3px);
     filter: brightness(1.04);
+}
+
+.logout-action-btn {
+    color: #ffd9d9;
+    background: rgba(232, 66, 66, 0.16);
+    border-color: rgba(232, 66, 66, 0.35);
 }
 
 .tickets-badge {

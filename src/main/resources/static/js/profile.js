@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const editAvatarButton = document.getElementById("editAvatarButton");
     const avatarFileInput = document.getElementById("avatarFileInput");
     const avatarStatus = document.getElementById("avatarStatus");
+    const logoutButton = document.getElementById("logoutButton");
 
     const getHeaders = () => {
         const headers = {};
@@ -184,6 +185,12 @@ document.addEventListener("DOMContentLoaded", () => {
             uploadAvatar(file);
         });
     }
+
+    logoutButton?.addEventListener("click", () => {
+        localStorage.removeItem("accountId");
+        localStorage.removeItem("userRole");
+        redirectToLogin();
+    });
 
     loadSummary();
 });
