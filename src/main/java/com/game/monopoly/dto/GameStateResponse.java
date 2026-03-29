@@ -30,6 +30,36 @@ public class GameStateResponse {
      * Thông báo thuê đất vừa xảy ra (chỉ gửi một lần rồi xóa khỏi hàng đợi khi client gọi getState).
      */
     private List<RentNoticeDto> rentNotices;
+    /**
+     * Dòng log ván (lắc xúc xắc, mua, nâng cấp, kết lượt…) — một lần rồi xóa như rentNotices.
+     */
+    private List<String> gameLogLines;
+    /** Khi không đủ tiền trả thuê — cần bán tài sản hoặc phá sản. */
+    private DebtSituationDto debtSituation;
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DebtSituationDto {
+        private long amountOwed;
+        private Integer creditorTurnOrder;
+        private String creditorName;
+        private String causeCellName;
+        private List<DebtAssetDto> assets;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class DebtAssetDto {
+        private Integer cellId;
+        private String name;
+        private Integer boardIndex;
+        private Integer houseLevel;
+        /** SELL_HOUSE hoặc MORTGAGE */
+        private String suggestedAction;
+        private Long cashIfSold;
+    }
 
     @Getter
     @Builder
@@ -57,11 +87,15 @@ public class GameStateResponse {
         private String name;
         private String type;
         private Long price;
+        /** Giá gốc ô + tổng tiền đã nâng cấp. */
+        private Long houseValue;
         private Long upgradeCost;
         private Long estimatedRent;
         private Long ownerGamePlayerId;
         private Integer ownerTurnOrder;
         private Integer houseLevel;
+        /** Ô có thể mua (đất / RR / tiện ích) — false với ô sự kiện, thuế, tù, xuất phát… */
+        private Boolean purchasable;
         private Boolean canBuy;
         private Boolean canUpgrade;
     }
@@ -85,5 +119,26 @@ public class GameStateResponse {
         private String heroImageUrl;
         /** Tên hero — dùng với HeroSystem SVG khi không có ảnh. */
         private String heroName;
+        private Boolean inJail;
+        private Integer jailFailedRolls;
+        private List<PlayerSkillDto> skills;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class PlayerSkillDto {
+        private Integer skillId;
+        private String name;
+        private String description;
+        /** PASSIVE hoặc ACTIVE */
+        private String triggerType;
+        private Integer cooldownTurns;
+        /** Lượt hồi còn lại (0 = sẵn sàng). */
+        private Integer cooldownRemaining;
+        /** Skill thụ động: luôn hiệu lực trong trận. */
+        private Boolean passiveActive;
+        /** Skill chủ động: có thể kích hoạt ngay (hết hồi). */
+        private Boolean readyToActivate;
     }
 }

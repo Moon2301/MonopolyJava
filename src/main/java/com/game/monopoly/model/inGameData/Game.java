@@ -45,4 +45,14 @@ public class Game {
     /** Mốc bắt đầu đếm thời gian cho lượt người (chờ tung xúc xắc / hành động sau khi đi). */
     @Column(name = "human_turn_started_at")
     private LocalDateTime humanTurnStartedAt;
+
+    /** Tiền thuê đang nợ (chưa trả đủ) — khi turnState = INSOLVENT. */
+    @Column(name = "debt_rent_amount")
+    private Long debtRentAmount;
+
+    @Column(name = "debt_creditor_game_player_id")
+    private Long debtCreditorGamePlayerId;
+
+    @Column(name = "debt_cell_id")
+    private Integer debtCellId;
 }

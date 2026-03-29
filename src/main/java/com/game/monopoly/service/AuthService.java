@@ -6,7 +6,9 @@ import com.game.monopoly.model.metaData.Account;
 import com.game.monopoly.model.metaData.UserProfile;
 import com.game.monopoly.model.enums.UserRole;
 import com.game.monopoly.model.enums.AccountStatus;
+import com.game.monopoly.model.metaData.Hero;
 import com.game.monopoly.repository.AccountRepository;
+import com.game.monopoly.repository.HeroRepository;
 import com.game.monopoly.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +24,7 @@ public class AuthService {
 
     private final AccountRepository accountRepository;
     private final UserProfileRepository userProfileRepository;
+    private final HeroRepository heroRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -52,6 +55,11 @@ public class AuthService {
         profile.setUsername(request.getUsername());
         profile.setGold(1000L);
         profile.setDiamonds(10L);
+
+        heroRepository
+                .findFirstByDefaultUnlockedTrueOrderByCharacterIdAsc()
+                .map(Hero::getCharacterId)
+                .ifPresent(profile::setDefaultCharacterId);
 
         userProfileRepository.save(profile);
     }

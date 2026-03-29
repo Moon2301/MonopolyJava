@@ -14,6 +14,8 @@ import java.util.Optional;
 public interface PlayerPropertyRepository extends JpaRepository<PlayerProperty, PlayerPropertyId> {
     List<PlayerProperty> findByGame_GameId(Long gameId);
 
+    List<PlayerProperty> findByGame_GameIdAndOwnerPlayer_GamePlayerId(Long gameId, Long ownerGamePlayerId);
+
     java.util.Optional<PlayerProperty> findByGame_GameIdAndBoardCell_CellId(Long gameId, Integer cellId);
 
     @Query(

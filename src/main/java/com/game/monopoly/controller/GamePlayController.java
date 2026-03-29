@@ -36,6 +36,15 @@ public class GamePlayController {
         return gamePlayService.rollDice(gameId, accountId);
     }
 
+    @PostMapping("/{gameId}/skill/activate")
+    public GameActionResponse activateSkill(
+            @PathVariable Long gameId,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @RequestBody(required = false) SkillActivateRequest request
+    ) {
+        return gamePlayService.activateSkill(gameId, accountId, request);
+    }
+
     @PostMapping("/{gameId}/buy")
     public GameActionResponse buyCurrentCell(
             @PathVariable Long gameId,
@@ -58,5 +67,22 @@ public class GamePlayController {
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId
     ) {
         return gamePlayService.endTurn(gameId, accountId);
+    }
+
+    @PostMapping("/{gameId}/debt/sell")
+    public GameActionResponse sellAssetForDebt(
+            @PathVariable Long gameId,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @RequestBody DebtSellRequest request
+    ) {
+        return gamePlayService.sellAssetForDebt(gameId, accountId, request);
+    }
+
+    @PostMapping("/{gameId}/debt/bankrupt")
+    public GameActionResponse declareBankruptcyForDebt(
+            @PathVariable Long gameId,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return gamePlayService.declareBankruptcyForDebt(gameId, accountId);
     }
 }

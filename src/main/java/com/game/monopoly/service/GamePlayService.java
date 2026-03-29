@@ -1,7 +1,9 @@
 package com.game.monopoly.service;
 
+import com.game.monopoly.dto.DebtSellRequest;
 import com.game.monopoly.dto.GameActionResponse;
 import com.game.monopoly.dto.GameStateResponse;
+import com.game.monopoly.dto.SkillActivateRequest;
 import com.game.monopoly.dto.StartBotGameRequest;
 import com.game.monopoly.dto.StartBotGameResponse;
 import com.game.monopoly.MonopolyGameRules;
@@ -16,12 +18,16 @@ import com.game.monopoly.model.metaData.Hero;
 import com.game.monopoly.model.metaData.MapCell;
 import com.game.monopoly.model.metaData.UserProfile;
 import com.game.monopoly.repository.*;
+import com.game.monopoly.service.skill.PlayerSkillViewService;
+import com.game.monopoly.service.skill.SkillActivationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +37,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GamePlayService {
 
     private static final long UPGRADE_BASE_COST = 100L;
+    /** Khi bán/thế chấp để trả nợ: chỉ nhận % giá trị danh nghĩa (ví dụ 90). */
+    private static final int LIQUIDATION_PERCENT = 90;
     private static final int HUMAN_WAIT_ROLL_SECONDS = 25;
     private static final int HUMAN_ACTION_SECONDS = 35;
 
@@ -43,12 +51,59 @@ public class GamePlayService {
     private final AccountRepository accountRepository;
     private final UserProfileRepository userProfileRepository;
     private final HeroRepository heroRepository;
+    private final PlayerSkillViewService playerSkillViewService;
+    private final SkillActivationService skillActivationService;
     private final Random random = new Random();
 
     private final Map<Long, Integer[]> lastDiceByGame = new HashMap<>();
     private final Map<Long, String> botDifficultyByGame = new HashMap<>();
     /** Trả về trong getState một lần rồi xóa — để client hiển thị chat hệ thống. */
     private final Map<Long, List<GameStateResponse.RentNoticeDto>> pendingRentNotices = new ConcurrentHashMap<>();
+
+    private final Map<Long, List<String>> pendingGameLogs = new ConcurrentHashMap<>();
+
+    private static final NumberFormat VI_MONEY =
+            NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
+
+    private String formatMoneyLog(long value) {
+        return VI_MONEY.format(value);
+    }
+
+    private void enqueueGameLog(Long gameId, String message) {
+        if (message == null || message.isBlank()) {
+            return;
+        }
+        pendingGameLogs.compute(
+                gameId,
+                (k, v) -> {
+                    List<String> list = v != null ? v : new ArrayList<>();
+                    list.add(message);
+                    return list;
+                });
+    }
+
+    private void logDiceMovement(Game game, GamePlayer player, int d1, int d2, long passGoBonus) {
+        String who = displayNameForPlayer(player);
+        int sum = d1 + d2;
+        StringBuilder sb = new StringBuilder();
+        sb.append(who)
+                .append(" lắc ")
+                .append(d1)
+                .append(" + ")
+                .append(d2)
+                .append(" (tổng ")
+                .append(sum)
+                .append("), đi ")
+                .append(sum)
+                .append(" bước");
+        if (passGoBonus > 0) {
+            sb.append(" · Qua ô xuất phát +").append(formatMoneyLog(passGoBonus));
+        }
+        if (d1 == d2) {
+            sb.append(" · Đôi!");
+        }
+        enqueueGameLog(game.getGameId(), sb.toString());
+    }
 
     @Transactional
     public StartBotGameResponse startBotGame(Long accountId, StartBotGameRequest request) {
@@ -131,8 +186,13 @@ public class GamePlayService {
     @Transactional
     public GameStateResponse getState(Long gameId, Long accountId) {
         Game game = getGame(gameId);
+        healStuckInsolvencyIfNeeded(game);
+        game = getGame(gameId);
         ensureHumanTurnClockStarted(game);
         maybeResolveExpiredHumanTurn(game);
+        game = getGame(gameId);
+        advanceOneBotStep(game);
+        game = getGame(gameId);
 
         List<GamePlayer> players = gamePlayerRepository.findByGameIdOrderByTurnOrderAsc(gameId);
         Integer[] dice = lastDiceByGame.getOrDefault(gameId, new Integer[]{null, null});
@@ -146,6 +206,8 @@ public class GamePlayService {
 
         List<GameStateResponse.RentNoticeDto> rentNotices =
                 Optional.ofNullable(pendingRentNotices.remove(gameId)).orElseGet(List::of);
+        List<String> gameLogLines =
+                Optional.ofNullable(pendingGameLogs.remove(gameId)).orElseGet(List::of);
 
         return GameStateResponse.builder()
                 .gameId(game.getGameId())
@@ -162,6 +224,8 @@ public class GamePlayService {
                 .players(players.stream().map(this::toPlayerState).toList())
                 .ownedCells(buildOwnedCellsSnapshot(game))
                 .rentNotices(rentNotices)
+                .gameLogLines(gameLogLines)
+                .debtSituation(buildDebtSituation(game, currentPlayer))
                 .build();
     }
 
@@ -198,6 +262,9 @@ public class GamePlayService {
         GamePlayer player = getCurrentTurnPlayer(game);
         validateHumanTurn(player, accountId);
 
+        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            throw new RuntimeException("Bạn đang nợ tiền thuê — hãy bán tài sản hoặc phá sản");
+        }
         if (!"WAIT_ROLL".equalsIgnoreCase(game.getTurnState())) {
             throw new RuntimeException("Lượt hiện tại không thể tung xúc xắc");
         }
@@ -207,16 +274,30 @@ public class GamePlayService {
         if (rolled.passGoBonus() > 0) {
             message += " · Qua ô xuất phát +" + rolled.passGoBonus();
         }
-        maybeAutoRunBotTurns(game);
-        return actionResult(game.getGameId(), message, accountId);
+        return actionResult(gameId, message, accountId);
     }
 
+    @Transactional
+    public GameActionResponse activateSkill(Long gameId, Long accountId, SkillActivateRequest request) {
+        String msg =
+                skillActivationService.performActivate(
+                        gameId, accountId, request, line -> enqueueGameLog(gameId, line));
+        return actionResult(gameId, msg, accountId);
+    }
+
+    /**
+     * Mua ô hiện tại theo {@link GamePlayer#getPosition()} — trong cả pha {@code ACTION_REQUIRED}
+     * (cả lượt sau khi đi, không bắt buộc thao tác ngay lúc vừa dừng quân).
+     */
     @Transactional
     public GameActionResponse buyCurrentCell(Long gameId, Long accountId) {
         Game game = getGame(gameId);
         GamePlayer player = getCurrentTurnPlayer(game);
         validateHumanTurn(player, accountId);
 
+        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            throw new RuntimeException("Bạn đang nợ tiền thuê — không thể mua ô");
+        }
         if (!"ACTION_REQUIRED".equalsIgnoreCase(game.getTurnState())) {
             throw new RuntimeException("Không thể mua ô ở thời điểm hiện tại");
         }
@@ -248,12 +329,21 @@ public class GamePlayService {
             return pp;
         });
         property.setOwnerPlayer(player);
+        property.setUpgradeSpentTotal(0L);
         playerPropertyRepository.save(property);
 
         game.setHumanTurnStartedAt(LocalDateTime.now());
         gameRepository.save(game);
 
-        maybeAutoRunBotTurns(game);
+        enqueueGameLog(
+                gameId,
+                displayNameForPlayer(player)
+                        + " mua \""
+                        + (cell.getName() != null ? cell.getName() : "Ô")
+                        + "\" · trả "
+                        + formatMoneyLog(price)
+                        + ".");
+
         return actionResult(gameId, "Mua ô " + cell.getName() + " thành công", accountId);
     }
 
@@ -263,6 +353,9 @@ public class GamePlayService {
         GamePlayer player = getCurrentTurnPlayer(game);
         validateHumanTurn(player, accountId);
 
+        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            throw new RuntimeException("Bạn đang nợ tiền thuê — không thể nâng cấp");
+        }
         if (!"ACTION_REQUIRED".equalsIgnoreCase(game.getTurnState())) {
             throw new RuntimeException("Không thể nâng cấp ở thời điểm hiện tại");
         }
@@ -281,20 +374,32 @@ public class GamePlayService {
             throw new RuntimeException("Ô đã đạt cấp tối đa");
         }
 
-        long upgradeCost = Math.max(UPGRADE_BASE_COST, (long) (getCellPrice(cell) * 0.5));
+        long upgradeCost = upgradeCostForCell(cell);
         if (player.getBalance() < upgradeCost) {
             throw new RuntimeException("Không đủ tiền để nâng cấp");
         }
 
         player.setBalance(player.getBalance() - upgradeCost);
         property.setHouseLevel(currentLevel + 1);
+        long spent = property.getUpgradeSpentTotal() == null ? 0L : property.getUpgradeSpentTotal();
+        property.setUpgradeSpentTotal(spent + upgradeCost);
         gamePlayerRepository.save(player);
         playerPropertyRepository.save(property);
 
         game.setHumanTurnStartedAt(LocalDateTime.now());
         gameRepository.save(game);
 
-        maybeAutoRunBotTurns(game);
+        enqueueGameLog(
+                gameId,
+                displayNameForPlayer(player)
+                        + " nâng cấp \""
+                        + (cell.getName() != null ? cell.getName() : "Ô")
+                        + "\" lên cấp "
+                        + property.getHouseLevel()
+                        + " · trả "
+                        + formatMoneyLog(upgradeCost)
+                        + ".");
+
         return actionResult(gameId, "Nâng cấp ô " + cell.getName() + " lên cấp " + property.getHouseLevel(), accountId);
     }
 
@@ -304,12 +409,17 @@ public class GamePlayService {
         GamePlayer player = getCurrentTurnPlayer(game);
         validateHumanTurn(player, accountId);
 
+        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            throw new RuntimeException("Bạn đang nợ tiền thuê — hãy bán tài sản hoặc phá sản trước");
+        }
         if ("WAIT_ROLL".equalsIgnoreCase(game.getTurnState())) {
             throw new RuntimeException("Hãy tung xúc xắc trước khi kết thúc lượt");
         }
 
+        player.setConsecutiveDoubles(0);
+        gamePlayerRepository.save(player);
+        enqueueGameLog(gameId, displayNameForPlayer(player) + " kết thúc lượt.");
         advanceTurn(game);
-        maybeAutoRunBotTurns(game);
         return actionResult(gameId, "Kết thúc lượt", accountId);
     }
 
@@ -320,24 +430,139 @@ public class GamePlayService {
     }
 
     private RollDiceOutcome performRollAndMove(Game game, GamePlayer player) {
+        player = gamePlayerRepository.findById(player.getGamePlayerId()).orElseThrow();
+        if (Boolean.TRUE.equals(player.getInJail())) {
+            return performJailRoll(game, player);
+        }
+        return performNormalRoll(game, player);
+    }
+
+    private RollDiceOutcome performJailRoll(Game game, GamePlayer player) {
         int d1 = random.nextInt(6) + 1;
         int d2 = random.nextInt(6) + 1;
         lastDiceByGame.put(game.getGameId(), new Integer[]{d1, d2});
+        int fails = player.getJailFailedRolls() == null ? 0 : player.getJailFailedRolls();
 
+        Integer orderSnap = game.getCurrentPlayerOrder();
+        if (fails >= 3) {
+            player.setInJail(false);
+            player.setJailFailedRolls(0);
+            player.setConsecutiveDoubles(0);
+            gamePlayerRepository.save(player);
+            long passGo = applyDiceMovementAndLanding(game, player, d1, d2);
+            player = gamePlayerRepository.findById(player.getGamePlayerId()).orElseThrow();
+            return finalizeAfterRoll(game, player, d1, d2, passGo, false, orderSnap);
+        }
+        if (d1 == d2) {
+            player.setInJail(false);
+            player.setJailFailedRolls(0);
+            player.setConsecutiveDoubles(0);
+            gamePlayerRepository.save(player);
+            long passGo = applyDiceMovementAndLanding(game, player, d1, d2);
+            player = gamePlayerRepository.findById(player.getGamePlayerId()).orElseThrow();
+            return finalizeAfterRoll(game, player, d1, d2, passGo, false, orderSnap);
+        }
+        enqueueGameLog(
+                game.getGameId(),
+                displayNameForPlayer(player)
+                        + " ở tù, lắc "
+                        + d1
+                        + " + "
+                        + d2
+                        + " (không đôi) — mất lượt ("
+                        + (fails + 1)
+                        + "/3).");
+        player.setJailFailedRolls(fails + 1);
+        gamePlayerRepository.save(player);
+        advanceTurn(game);
+        return new RollDiceOutcome(d1, d2, 0L);
+    }
+
+    private RollDiceOutcome performNormalRoll(Game game, GamePlayer player) {
+        Integer orderSnap = game.getCurrentPlayerOrder();
+        int d1 = random.nextInt(6) + 1;
+        int d2 = random.nextInt(6) + 1;
+        lastDiceByGame.put(game.getGameId(), new Integer[]{d1, d2});
+        boolean isDouble = d1 == d2;
+        if (isDouble) {
+            int cd = player.getConsecutiveDoubles() == null ? 0 : player.getConsecutiveDoubles();
+            cd++;
+            if (cd >= 3) {
+                enqueueGameLog(
+                        game.getGameId(),
+                        displayNameForPlayer(player) + " lắc đôi lần thứ 3 — vào tù.");
+                player.setConsecutiveDoubles(0);
+                gamePlayerRepository.save(player);
+                sendToJail(game, player);
+                advanceTurn(game);
+                return new RollDiceOutcome(d1, d2, 0L);
+            }
+            player.setConsecutiveDoubles(cd);
+        } else {
+            player.setConsecutiveDoubles(0);
+        }
+        gamePlayerRepository.save(player);
+        long passGo = applyDiceMovementAndLanding(game, player, d1, d2);
+        player = gamePlayerRepository.findById(player.getGamePlayerId()).orElseThrow();
+        boolean allowExtra = d1 == d2;
+        return finalizeAfterRoll(game, player, d1, d2, passGo, allowExtra, orderSnap);
+    }
+
+    private long applyDiceMovementAndLanding(Game game, GamePlayer player, int d1, int d2) {
         int boardCells = getBoardCellCount(game);
         int oldPos = player.getPosition() == null ? 0 : player.getPosition();
         int delta = d1 + d2;
         int raw = oldPos + delta;
         int nextPos = boardCells == 0 ? 0 : raw % boardCells;
-
         long balance = player.getBalance() == null ? 0L : player.getBalance();
         long laps = boardCells <= 0 ? 0L : raw / boardCells;
         long passGoBonus = laps * MonopolyGameRules.PASS_GO_BONUS;
+        logDiceMovement(game, player, d1, d2, passGoBonus);
         player.setBalance(balance + passGoBonus);
         player.setPosition(nextPos);
         gamePlayerRepository.save(player);
-
         applyLandingEffect(game, player);
+        return passGoBonus;
+    }
+
+    private RollDiceOutcome finalizeAfterRoll(
+            Game game,
+            GamePlayer player,
+            int d1,
+            int d2,
+            long passGoBonus,
+            boolean allowExtraRollIfDouble,
+            Integer orderBeforeMove) {
+        game = getGame(game.getGameId());
+
+        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())
+                && Boolean.TRUE.equals(player.getIsBot())) {
+            advanceOneBotDebtStep(game, player);
+            game = getGame(game.getGameId());
+        }
+
+        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            game.setHumanTurnStartedAt(LocalDateTime.now());
+            gameRepository.save(game);
+            return new RollDiceOutcome(d1, d2, passGoBonus);
+        }
+
+        if (!Objects.equals(orderBeforeMove, game.getCurrentPlayerOrder())) {
+            return new RollDiceOutcome(d1, d2, passGoBonus);
+        }
+
+        boolean isDouble = d1 == d2;
+        if (allowExtraRollIfDouble && isDouble) {
+            game.setTurnState("WAIT_ROLL");
+            if (!Boolean.TRUE.equals(player.getIsBot())) {
+                game.setHumanTurnStartedAt(LocalDateTime.now());
+            } else {
+                game.setHumanTurnStartedAt(null);
+            }
+            gameRepository.save(game);
+            return new RollDiceOutcome(d1, d2, passGoBonus);
+        }
+
         game.setTurnState("ACTION_REQUIRED");
         if (!Boolean.TRUE.equals(player.getIsBot())) {
             game.setHumanTurnStartedAt(LocalDateTime.now());
@@ -348,15 +573,60 @@ public class GamePlayService {
         return new RollDiceOutcome(d1, d2, passGoBonus);
     }
 
+    private int getJailBoardIndex(Game game) {
+        List<BoardCell> order = listBoardCellsInPlayOrder(game);
+        for (int i = 0; i < order.size(); i++) {
+            String t = order.get(i).getType();
+            if (t != null) {
+                String u = t.toUpperCase(Locale.ROOT);
+                if (u.contains("JAIL_VISIT")) {
+                    return i;
+                }
+            }
+        }
+        for (int i = 0; i < order.size(); i++) {
+            String n = order.get(i).getName();
+            if (n != null && "jail".equalsIgnoreCase(n.trim())) {
+                return i;
+            }
+        }
+        return Math.min(10, Math.max(0, order.size() - 1));
+    }
+
+    private boolean isGoToJailCell(BoardCell cell) {
+        if (cell.getType() == null) {
+            return false;
+        }
+        String u = cell.getType().toUpperCase(Locale.ROOT);
+        return u.contains("GOTO_JAIL") || u.contains("GO_TO_JAIL");
+    }
+
+    private void sendToJail(Game game, GamePlayer p) {
+        int idx = getJailBoardIndex(game);
+        p.setPosition(idx);
+        p.setInJail(true);
+        p.setJailFailedRolls(0);
+        p.setConsecutiveDoubles(0);
+        gamePlayerRepository.save(p);
+    }
+
     private void applyLandingEffect(Game game, GamePlayer currentPlayer) {
         BoardCell cell = getCellByPosition(game, currentPlayer.getPosition());
-        Optional<PlayerProperty> pp =
+        if (isGoToJailCell(cell)) {
+            enqueueGameLog(
+                    game.getGameId(),
+                    displayNameForPlayer(currentPlayer) + " vào tù (ô Đi tù).");
+            sendToJail(game, currentPlayer);
+            advanceTurn(game);
+            return;
+        }
+        Optional<PlayerProperty> ppOpt =
                 playerPropertyRepository.findByGameIdAndCellIdWithOwner(game.getGameId(), cell.getCellId());
-        if (pp.isEmpty()) {
+        if (ppOpt.isEmpty()) {
             return;
         }
 
-        PlayerProperty property = pp.get();
+        PlayerProperty property = ppOpt.get();
         GamePlayer owner = property.getOwnerPlayer();
         if (owner == null) {
             return;
@@ -368,94 +638,493 @@ public class GamePlayService {
             return;
         }
 
-        long rent = calculateRent(cell, property.getHouseLevel());
+        long rent = calculateRent(cell, property);
         long payerBalance = currentPlayer.getBalance() == null ? 0L : currentPlayer.getBalance();
         long ownerBalance = owner.getBalance() == null ? 0L : owner.getBalance();
 
-        long paid = Math.min(payerBalance, rent);
-        currentPlayer.setBalance(payerBalance - paid);
-        owner.setBalance(ownerBalance + paid);
-        if (currentPlayer.getBalance() <= 0) {
+        if (rent <= payerBalance) {
+            currentPlayer.setBalance(payerBalance - rent);
+            owner.setBalance(ownerBalance + rent);
+            gamePlayerRepository.save(currentPlayer);
+            gamePlayerRepository.save(owner);
+            enqueueRentNotice(game, currentPlayer, owner, cell, rent);
+            return;
+        }
+
+        List<PlayerProperty> myAssets =
+                playerPropertyRepository.findByGame_GameIdAndOwnerPlayer_GamePlayerId(
+                        game.getGameId(), currentPlayer.getGamePlayerId());
+        if (!canLiquidateAny(myAssets)) {
+            currentPlayer.setBalance(0L);
+            owner.setBalance(ownerBalance + payerBalance);
             currentPlayer.setIsBankrupt(true);
+            gamePlayerRepository.save(currentPlayer);
+            gamePlayerRepository.save(owner);
+            transferAllPropertiesFromTo(game.getGameId(), currentPlayer, owner);
+            enqueueRentNotice(game, currentPlayer, owner, cell, payerBalance);
+            advanceTurn(game);
+            return;
         }
-        gamePlayerRepository.save(currentPlayer);
-        gamePlayerRepository.save(owner);
 
-        if (paid > 0) {
-            String cellLabel = cell.getName() != null && !cell.getName().isBlank() ? cell.getName() : "Ô";
-            GameStateResponse.RentNoticeDto notice =
-                    GameStateResponse.RentNoticeDto.builder()
-                            .payerName(displayNameForPlayer(currentPlayer))
-                            .amountPaid(paid)
-                            .cellName(cellLabel)
-                            .ownerName(displayNameForPlayer(owner))
-                            .build();
-            pendingRentNotices
-                    .compute(game.getGameId(), (k, v) -> {
-                        List<GameStateResponse.RentNoticeDto> list =
-                                v != null ? v : new ArrayList<>();
-                        list.add(notice);
-                        return list;
-                    });
-        }
+        game.setDebtRentAmount(rent);
+        game.setDebtCreditorGamePlayerId(owner.getGamePlayerId());
+        game.setDebtCellId(cell.getCellId());
+        game.setTurnState("INSOLVENT");
+        gameRepository.save(game);
     }
 
-    private long calculateRent(BoardCell cell, Integer houseLevel) {
-        long base = cell.getBaseRent() == null ? Math.max(20, getCellPrice(cell) / 5) : cell.getBaseRent();
-        int level = houseLevel == null ? 0 : houseLevel;
-        return base * (1L + level);
+    private void enqueueRentNotice(
+            Game game, GamePlayer payer, GamePlayer owner, BoardCell cell, long paid) {
+        if (paid <= 0) {
+            return;
+        }
+        String cellLabel = cell.getName() != null && !cell.getName().isBlank() ? cell.getName() : "Ô";
+        GameStateResponse.RentNoticeDto notice =
+                GameStateResponse.RentNoticeDto.builder()
+                        .payerName(displayNameForPlayer(payer))
+                        .amountPaid(paid)
+                        .cellName(cellLabel)
+                        .ownerName(displayNameForPlayer(owner))
+                        .build();
+        pendingRentNotices.compute(
+                game.getGameId(),
+                (k, v) -> {
+                    List<GameStateResponse.RentNoticeDto> list = v != null ? v : new ArrayList<>();
+                    list.add(notice);
+                    return list;
+                });
     }
 
-    private void maybeAutoRunBotTurns(Game game) {
-        int guard = 0;
-        while (guard < 48) {
-            guard++;
-            GamePlayer current = getCurrentTurnPlayer(game);
-            if (!Boolean.TRUE.equals(current.getIsBot())) {
-                break;
+    private boolean canLiquidateAny(List<PlayerProperty> owned) {
+        if (owned == null || owned.isEmpty()) {
+            return false;
+        }
+        for (PlayerProperty pp : owned) {
+            int lvl = pp.getHouseLevel() == null ? 0 : pp.getHouseLevel();
+            if (lvl > 0) {
+                return true;
             }
-            runBotTurn(game, current);
+        }
+        for (PlayerProperty pp : owned) {
+            int lvl = pp.getHouseLevel() == null ? 0 : pp.getHouseLevel();
+            if (lvl == 0 && pp.getBoardCell() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void transferAllPropertiesFromTo(Long gameId, GamePlayer from, GamePlayer to) {
+        List<PlayerProperty> list =
+                playerPropertyRepository.findByGame_GameIdAndOwnerPlayer_GamePlayerId(
+                        gameId, from.getGamePlayerId());
+        for (PlayerProperty pp : list) {
+            pp.setOwnerPlayer(to);
+            playerPropertyRepository.save(pp);
         }
     }
 
-    private void runBotTurn(Game game, GamePlayer botPlayer) {
-        String difficulty = botDifficultyByGame.getOrDefault(game.getGameId(), "easy");
-        performRollAndMove(game, botPlayer);
+    private void clearDebtFields(Game game) {
+        game.setDebtRentAmount(null);
+        game.setDebtCreditorGamePlayerId(null);
+        game.setDebtCellId(null);
+    }
 
+    /**
+     * Một bước xử lý nợ cho bot (bán 1 tài sản / trả đủ / phá sản). Client poll liên tục để chạy tiếp.
+     */
+    private void advanceOneBotDebtStep(Game game, GamePlayer bot) {
+        game = getGame(game.getGameId());
+        bot = gamePlayerRepository.findById(bot.getGamePlayerId()).orElseThrow();
+        if (!"INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            return;
+        }
+        GamePlayer creditor =
+                gamePlayerRepository.findById(game.getDebtCreditorGamePlayerId()).orElse(null);
+        if (creditor == null) {
+            return;
+        }
+        long owed = game.getDebtRentAmount() == null ? 0L : game.getDebtRentAmount();
+        long bal = bot.getBalance() == null ? 0L : bot.getBalance();
+        if (bal >= owed) {
+            settleDebtPayment(game, bot, creditor);
+            return;
+        }
+        List<PlayerProperty> assets =
+                playerPropertyRepository.findByGame_GameIdAndOwnerPlayer_GamePlayerId(
+                        game.getGameId(), bot.getGamePlayerId());
+        if (!canLiquidateAny(assets)) {
+            declareBankruptcyForDebtInternal(game, bot, creditor);
+            return;
+        }
+        PlayerProperty pick = pickLiquidationTarget(assets);
+        if (pick == null) {
+            declareBankruptcyForDebtInternal(game, bot, creditor);
+            return;
+        }
+        liquidateOneStep(game, bot, pick);
+        bot = gamePlayerRepository.findById(bot.getGamePlayerId()).orElseThrow();
+        game = getGame(game.getGameId());
+        owed = game.getDebtRentAmount() == null ? 0L : game.getDebtRentAmount();
+        if ((bot.getBalance() == null ? 0L : bot.getBalance()) >= owed) {
+            creditor =
+                    gamePlayerRepository
+                            .findById(game.getDebtCreditorGamePlayerId())
+                            .orElseThrow();
+            settleDebtPayment(game, bot, creditor);
+        }
+    }
+
+    /**
+     * Một hành động bot mỗi lần gọi (lắc / mua / nâng cấp / hết lượt / một bước trả nợ).
+     * Không Thread.sleep — client poll nhanh khi không tới lượt người.
+     */
+    private void advanceOneBotStep(Game game) {
+        Long gid = game.getGameId();
+        game = getGame(gid);
+        if (game.getStatus() != GameStatus.PLAYING) {
+            return;
+        }
+        GamePlayer cur = getCurrentTurnPlayer(game);
+        if (!Boolean.TRUE.equals(cur.getIsBot())) {
+            return;
+        }
+        String ts = game.getTurnState();
+        if ("INSOLVENT".equalsIgnoreCase(ts)) {
+            advanceOneBotDebtStep(game, cur);
+            return;
+        }
+        if ("WAIT_ROLL".equalsIgnoreCase(ts)) {
+            performRollAndMove(game, cur);
+            return;
+        }
+        if ("ACTION_REQUIRED".equalsIgnoreCase(ts)) {
+            executeBotActionPhase(game, cur);
+        }
+    }
+
+    private void executeBotActionPhase(Game game, GamePlayer botPlayer) {
+        Long gid = game.getGameId();
+        String difficulty = botDifficultyByGame.getOrDefault(gid, "easy");
         BoardCell cell = getCellByPosition(game, botPlayer.getPosition());
-        Optional<PlayerProperty> existing = playerPropertyRepository.findByGame_GameIdAndBoardCell_CellId(game.getGameId(), cell.getCellId());
+        Optional<PlayerProperty> existing =
+                playerPropertyRepository.findByGame_GameIdAndBoardCell_CellId(gid, cell.getCellId());
+        final Game gameRef = game;
 
         if (isPurchasableCell(cell) && (existing.isEmpty() || existing.get().getOwnerPlayer() == null)) {
             boolean shouldBuy = "hard".equals(difficulty) || random.nextInt(100) < 55;
             if (shouldBuy && botPlayer.getBalance() >= getCellPrice(cell)) {
-                PlayerProperty pp = existing.orElseGet(() -> {
-                    PlayerProperty p = new PlayerProperty();
-                    p.setId(new PlayerPropertyId(game.getGameId(), cell.getCellId()));
-                    p.setGame(game);
-                    p.setBoardCell(cell);
-                    p.setHouseLevel(0);
-                    return p;
-                });
+                PlayerProperty pp =
+                        existing.orElseGet(
+                                () -> {
+                                    PlayerProperty p = new PlayerProperty();
+                                    p.setId(new PlayerPropertyId(gameRef.getGameId(), cell.getCellId()));
+                                    p.setGame(gameRef);
+                                    p.setBoardCell(cell);
+                                    p.setHouseLevel(0);
+                                    p.setUpgradeSpentTotal(0L);
+                                    return p;
+                                });
                 botPlayer.setBalance(botPlayer.getBalance() - getCellPrice(cell));
                 pp.setOwnerPlayer(botPlayer);
+                pp.setUpgradeSpentTotal(0L);
                 gamePlayerRepository.save(botPlayer);
                 playerPropertyRepository.save(pp);
+                long paid = getCellPrice(cell);
+                enqueueGameLog(
+                        gid,
+                        displayNameForPlayer(botPlayer)
+                                + " mua \""
+                                + (cell.getName() != null ? cell.getName() : "Ô")
+                                + "\" · trả "
+                                + formatMoneyLog(paid)
+                                + ".");
+                return;
             }
-        } else if (existing.isPresent() && existing.get().getOwnerPlayer() != null
-                && Objects.equals(existing.get().getOwnerPlayer().getGamePlayerId(), botPlayer.getGamePlayerId())) {
+        }
+        if (existing.isPresent()
+                && existing.get().getOwnerPlayer() != null
+                && Objects.equals(
+                        existing.get().getOwnerPlayer().getGamePlayerId(),
+                        botPlayer.getGamePlayerId())) {
             int level = existing.get().getHouseLevel() == null ? 0 : existing.get().getHouseLevel();
             int max = cell.getMaxHouseLevel() == null ? 5 : cell.getMaxHouseLevel();
-            long cost = Math.max(UPGRADE_BASE_COST, (long) (getCellPrice(cell) * 0.5));
-            boolean shouldUpgrade = "hard".equals(difficulty) ? random.nextInt(100) < 70 : random.nextInt(100) < 35;
+            long cost = upgradeCostForCell(cell);
+            boolean shouldUpgrade =
+                    "hard".equals(difficulty) ? random.nextInt(100) < 70 : random.nextInt(100) < 35;
             if (level < max && shouldUpgrade && botPlayer.getBalance() >= cost) {
                 botPlayer.setBalance(botPlayer.getBalance() - cost);
                 existing.get().setHouseLevel(level + 1);
+                long sp =
+                        existing.get().getUpgradeSpentTotal() == null
+                                ? 0L
+                                : existing.get().getUpgradeSpentTotal();
+                existing.get().setUpgradeSpentTotal(sp + cost);
                 gamePlayerRepository.save(botPlayer);
                 playerPropertyRepository.save(existing.get());
+                enqueueGameLog(
+                        gid,
+                        displayNameForPlayer(botPlayer)
+                                + " nâng cấp \""
+                                + (cell.getName() != null ? cell.getName() : "Ô")
+                                + "\" lên cấp "
+                                + existing.get().getHouseLevel()
+                                + " · trả "
+                                + formatMoneyLog(cost)
+                                + ".");
+                return;
             }
         }
+        enqueueGameLog(gid, displayNameForPlayer(botPlayer) + " kết thúc lượt.");
+        advanceTurn(getGame(gid));
+    }
 
+    private PlayerProperty pickLiquidationTarget(List<PlayerProperty> assets) {
+        PlayerProperty withHouse = null;
+        int bestLvl = -1;
+        for (PlayerProperty pp : assets) {
+            int lvl = pp.getHouseLevel() == null ? 0 : pp.getHouseLevel();
+            if (lvl > bestLvl) {
+                bestLvl = lvl;
+                withHouse = pp;
+            }
+        }
+        if (withHouse != null && bestLvl > 0) {
+            return withHouse;
+        }
+        return assets.isEmpty() ? null : assets.get(0);
+    }
+
+    private void liquidateOneStep(Game game, GamePlayer player, PlayerProperty pp) {
+        BoardCell cell = pp.getBoardCell();
+        if (cell == null) {
+            return;
+        }
+        int level = pp.getHouseLevel() == null ? 0 : pp.getHouseLevel();
+        if (level > 0) {
+            long levelCost = upgradeCostForCell(cell);
+            long spent = getUpgradeSpent(pp, cell);
+            long newSpent = Math.max(0L, spent - levelCost);
+            pp.setUpgradeSpentTotal(newSpent);
+            long refundNominal = Math.max(1L, levelCost / 2);
+            long refund = refundNominal * LIQUIDATION_PERCENT / 100;
+            pp.setHouseLevel(level - 1);
+            player.setBalance((player.getBalance() == null ? 0L : player.getBalance()) + refund);
+            playerPropertyRepository.save(pp);
+            gamePlayerRepository.save(player);
+            return;
+        }
+        long mortgageNominal = getCellPrice(cell) / 2;
+        long mortgageValue = mortgageNominal * LIQUIDATION_PERCENT / 100;
+        pp.setOwnerPlayer(null);
+        pp.setHouseLevel(0);
+        pp.setUpgradeSpentTotal(0L);
+        player.setBalance((player.getBalance() == null ? 0L : player.getBalance()) + mortgageValue);
+        playerPropertyRepository.save(pp);
+        gamePlayerRepository.save(player);
+    }
+
+    private long upgradeCostForCell(BoardCell cell) {
+        return Math.max(UPGRADE_BASE_COST, (long) (getCellPrice(cell) * 0.5));
+    }
+
+    private long getUpgradeSpent(PlayerProperty pp, BoardCell cell) {
+        if (pp.getUpgradeSpentTotal() != null && pp.getUpgradeSpentTotal() > 0) {
+            return pp.getUpgradeSpentTotal();
+        }
+        int lv = pp.getHouseLevel() == null ? 0 : pp.getHouseLevel();
+        return estimateUpgradeSpentFromLevels(cell, lv);
+    }
+
+    private long estimateUpgradeSpentFromLevels(BoardCell cell, int levels) {
+        if (levels <= 0) {
+            return 0L;
+        }
+        long per = upgradeCostForCell(cell);
+        return per * levels;
+    }
+
+    private long getHouseValue(BoardCell cell, PlayerProperty pp) {
+        return getCellPrice(cell) + getUpgradeSpent(pp, cell);
+    }
+
+    /** Giá bán nhà một cấp (danh nghĩa, trước phạt 10% khi gán nợ). */
+    private long houseSellRefundNominal(BoardCell cell) {
+        return Math.max(1L, upgradeCostForCell(cell) / 2);
+    }
+
+    private long houseSellRefund(BoardCell cell) {
+        return houseSellRefundNominal(cell);
+    }
+
+    private void settleDebtPayment(Game game, GamePlayer payer, GamePlayer creditor) {
+        long rent = game.getDebtRentAmount() == null ? 0L : game.getDebtRentAmount();
+        Integer debtCellId = game.getDebtCellId();
+        BoardCell debtCell =
+                debtCellId != null
+                        ? boardCellRepository.findById(debtCellId).orElse(null)
+                        : null;
+
+        long pay = rent;
+        payer.setBalance((payer.getBalance() == null ? 0L : payer.getBalance()) - pay);
+        creditor.setBalance((creditor.getBalance() == null ? 0L : creditor.getBalance()) + pay);
+        gamePlayerRepository.save(payer);
+        gamePlayerRepository.save(creditor);
+
+        if (debtCell != null) {
+            enqueueRentNotice(game, payer, creditor, debtCell, pay);
+        }
+
+        clearDebtFields(game);
+        game.setTurnState("ACTION_REQUIRED");
+        if (!Boolean.TRUE.equals(payer.getIsBot())) {
+            game.setHumanTurnStartedAt(LocalDateTime.now());
+        } else {
+            game.setHumanTurnStartedAt(null);
+        }
+        gameRepository.save(game);
+    }
+
+    private void declareBankruptcyForDebtInternal(Game game, GamePlayer debtor, GamePlayer creditor) {
+        long cash = debtor.getBalance() == null ? 0L : debtor.getBalance();
+        creditor.setBalance((creditor.getBalance() == null ? 0L : creditor.getBalance()) + cash);
+        debtor.setBalance(0L);
+        debtor.setIsBankrupt(true);
+        transferAllPropertiesFromTo(game.getGameId(), debtor, creditor);
+        gamePlayerRepository.save(debtor);
+        gamePlayerRepository.save(creditor);
+        clearDebtFields(game);
+        gameRepository.save(game);
+        enqueueGameLog(
+                game.getGameId(),
+                displayNameForPlayer(debtor)
+                        + " phá sản — chuyển "
+                        + formatMoneyLog(cash)
+                        + " và tài sản cho "
+                        + displayNameForPlayer(creditor)
+                        + ".");
         advanceTurn(game);
+    }
+
+    @Transactional
+    public GameActionResponse sellAssetForDebt(Long gameId, Long accountId, DebtSellRequest request) {
+        Game game = getGame(gameId);
+        if (!"INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            throw new RuntimeException("Bạn không đang nợ tiền thuê");
+        }
+        GamePlayer player = getCurrentTurnPlayer(game);
+        validateHumanTurn(player, accountId);
+        if (request == null || request.getCellId() == null) {
+            throw new RuntimeException("Cần cellId của tài sản cần bán");
+        }
+        PlayerProperty pp =
+                playerPropertyRepository
+                        .findByGame_GameIdAndBoardCell_CellId(gameId, request.getCellId())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy ô này"));
+        if (pp.getOwnerPlayer() == null
+                || !Objects.equals(pp.getOwnerPlayer().getGamePlayerId(), player.getGamePlayerId())) {
+            throw new RuntimeException("Không phải tài sản của bạn");
+        }
+        liquidateOneStep(game, player, pp);
+        player = gamePlayerRepository.findById(player.getGamePlayerId()).orElseThrow();
+        game = getGame(gameId);
+        GamePlayer creditor =
+                gamePlayerRepository
+                        .findById(game.getDebtCreditorGamePlayerId())
+                        .orElseThrow();
+        long owed = game.getDebtRentAmount() == null ? 0L : game.getDebtRentAmount();
+        if ((player.getBalance() == null ? 0L : player.getBalance()) >= owed) {
+            settleDebtPayment(game, player, creditor);
+        }
+        return actionResult(gameId, "Đã xử lý tài sản", accountId);
+    }
+
+    @Transactional
+    public GameActionResponse declareBankruptcyForDebt(Long gameId, Long accountId) {
+        Game game = getGame(gameId);
+        if (!"INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            throw new RuntimeException("Bạn không đang nợ tiền thuê");
+        }
+        GamePlayer player = getCurrentTurnPlayer(game);
+        validateHumanTurn(player, accountId);
+        GamePlayer creditor =
+                gamePlayerRepository
+                        .findById(game.getDebtCreditorGamePlayerId())
+                        .orElseThrow();
+        declareBankruptcyForDebtInternal(game, player, creditor);
+        return actionResult(gameId, "Bạn đã phá sản — chuyển tài sản cho chủ nợ", accountId);
+    }
+
+    private GameStateResponse.DebtSituationDto buildDebtSituation(Game game, GamePlayer current) {
+        if (!"INSOLVENT".equalsIgnoreCase(game.getTurnState())
+                || game.getDebtRentAmount() == null
+                || game.getDebtCreditorGamePlayerId() == null) {
+            return null;
+        }
+        GamePlayer creditor =
+                gamePlayerRepository.findById(game.getDebtCreditorGamePlayerId()).orElse(null);
+        if (creditor == null) {
+            return null;
+        }
+        BoardCell cause =
+                game.getDebtCellId() != null
+                        ? boardCellRepository.findById(game.getDebtCellId()).orElse(null)
+                        : null;
+        String causeName = cause != null && cause.getName() != null ? cause.getName() : "Ô";
+
+        List<PlayerProperty> mine =
+                playerPropertyRepository.findByGame_GameIdAndOwnerPlayer_GamePlayerId(
+                        game.getGameId(), current.getGamePlayerId());
+        List<GameStateResponse.DebtAssetDto> assets = new ArrayList<>();
+        List<BoardCell> ordered = listBoardCellsInPlayOrder(game);
+        for (PlayerProperty pp : mine) {
+            if (pp.getBoardCell() == null) {
+                continue;
+            }
+            BoardCell bc = pp.getBoardCell();
+            int bi = 0;
+            for (int i = 0; i < ordered.size(); i++) {
+                if (ordered.get(i).getCellId().equals(bc.getCellId())) {
+                    bi = i;
+                    break;
+                }
+            }
+            int hl = pp.getHouseLevel() == null ? 0 : pp.getHouseLevel();
+            String action = hl > 0 ? "SELL_HOUSE" : "MORTGAGE";
+            long nominal = hl > 0 ? houseSellRefundNominal(bc) : getCellPrice(bc) / 2;
+            long cash = nominal * LIQUIDATION_PERCENT / 100;
+            assets.add(
+                    GameStateResponse.DebtAssetDto.builder()
+                            .cellId(bc.getCellId())
+                            .name(bc.getName())
+                            .boardIndex(bi)
+                            .houseLevel(hl)
+                            .suggestedAction(action)
+                            .cashIfSold(cash)
+                            .build());
+        }
+
+        return GameStateResponse.DebtSituationDto.builder()
+                .amountOwed(game.getDebtRentAmount())
+                .creditorTurnOrder(creditor.getTurnOrder())
+                .creditorName(displayNameForPlayer(creditor))
+                .causeCellName(causeName)
+                .assets(assets)
+                .build();
+    }
+
+    private long rentBaseLandOnly(BoardCell cell) {
+        return cell.getBaseRent() == null ? Math.max(20, getCellPrice(cell) / 5) : cell.getBaseRent();
+    }
+
+    /** Thuê = (giá nhà × cấp nhà × 10%); cấp 0 = thuê đất cơ bản. */
+    private long calculateRent(BoardCell cell, PlayerProperty property) {
+        int level = property.getHouseLevel() == null ? 0 : property.getHouseLevel();
+        if (level <= 0) {
+            return rentBaseLandOnly(cell);
+        }
+        long houseValue = getHouseValue(cell, property);
+        return (houseValue * level) / 10;
     }
 
     private void advanceTurn(Game game) {
@@ -500,6 +1169,11 @@ public class GamePlayService {
         game.setTurnState("WAIT_ROLL");
 
         GamePlayer nextPlayer = getCurrentTurnPlayer(game);
+        Integer cd = nextPlayer.getSkillCooldownRemaining();
+        if (cd != null && cd > 0) {
+            nextPlayer.setSkillCooldownRemaining(cd - 1);
+            gamePlayerRepository.save(nextPlayer);
+        }
         if (!Boolean.TRUE.equals(nextPlayer.getIsBot())) {
             game.setHumanTurnStartedAt(LocalDateTime.now());
         } else {
@@ -628,6 +1302,40 @@ public class GamePlayService {
         }
     }
 
+    /**
+     * Trạng thái INSOLVENT nhưng không còn gì để thanh khoản — tự phá sản để tránh kẹt UI / DB.
+     */
+    private void healStuckInsolvencyIfNeeded(Game game) {
+        if (game.getStatus() != GameStatus.PLAYING) {
+            return;
+        }
+        if (!"INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            return;
+        }
+        GamePlayer cur = getCurrentTurnPlayer(game);
+        List<PlayerProperty> mine =
+                playerPropertyRepository.findByGame_GameIdAndOwnerPlayer_GamePlayerId(
+                        game.getGameId(), cur.getGamePlayerId());
+        if (canLiquidateAny(mine)) {
+            return;
+        }
+        Long credId = game.getDebtCreditorGamePlayerId();
+        if (credId == null) {
+            clearDebtFields(game);
+            game.setTurnState("ACTION_REQUIRED");
+            gameRepository.save(game);
+            return;
+        }
+        GamePlayer creditor = gamePlayerRepository.findById(credId).orElse(null);
+        if (creditor == null) {
+            clearDebtFields(game);
+            game.setTurnState("ACTION_REQUIRED");
+            gameRepository.save(game);
+            return;
+        }
+        declareBankruptcyForDebtInternal(game, cur, creditor);
+    }
+
     private void maybeResolveExpiredHumanTurn(Game game) {
         if (game.getStatus() != GameStatus.PLAYING) {
             return;
@@ -643,7 +1351,7 @@ public class GamePlayService {
         int limit;
         if ("WAIT_ROLL".equalsIgnoreCase(ts)) {
             limit = HUMAN_WAIT_ROLL_SECONDS;
-        } else if ("ACTION_REQUIRED".equalsIgnoreCase(ts)) {
+        } else if ("ACTION_REQUIRED".equalsIgnoreCase(ts) || "INSOLVENT".equalsIgnoreCase(ts)) {
             limit = HUMAN_ACTION_SECONDS;
         } else {
             return;
@@ -652,12 +1360,20 @@ public class GamePlayService {
         if (elapsed < limit) {
             return;
         }
+        if ("INSOLVENT".equalsIgnoreCase(ts)) {
+            GamePlayer creditor =
+                    gamePlayerRepository
+                            .findById(game.getDebtCreditorGamePlayerId())
+                            .orElse(null);
+            if (creditor != null) {
+                declareBankruptcyForDebtInternal(game, cur, creditor);
+            }
+            return;
+        }
         if ("WAIT_ROLL".equalsIgnoreCase(ts)) {
             performRollAndMove(game, cur);
-            maybeAutoRunBotTurns(game);
         } else {
             advanceTurn(game);
-            maybeAutoRunBotTurns(game);
         }
     }
 
@@ -672,7 +1388,7 @@ public class GamePlayService {
         int limit;
         if ("WAIT_ROLL".equalsIgnoreCase(ts)) {
             limit = HUMAN_WAIT_ROLL_SECONDS;
-        } else if ("ACTION_REQUIRED".equalsIgnoreCase(ts)) {
+        } else if ("ACTION_REQUIRED".equalsIgnoreCase(ts) || "INSOLVENT".equalsIgnoreCase(ts)) {
             limit = HUMAN_ACTION_SECONDS;
         } else {
             return null;
@@ -727,6 +1443,8 @@ public class GamePlayService {
             }
         }
 
+        List<GameStateResponse.PlayerSkillDto> skills = playerSkillViewService.buildSkillDtos(player);
+
         return GameStateResponse.PlayerStateDto.builder()
                 .gamePlayerId(player.getGamePlayerId())
                 .userProfileId(player.getUserProfileId())
@@ -739,6 +1457,9 @@ public class GamePlayService {
                 .avatarUrl(avatarUrl)
                 .heroImageUrl(heroImageUrl)
                 .heroName(heroName)
+                .inJail(Boolean.TRUE.equals(player.getInJail()))
+                .jailFailedRolls(player.getJailFailedRolls() == null ? 0 : player.getJailFailedRolls())
+                .skills(skills)
                 .build();
     }
 
@@ -755,14 +1476,25 @@ public class GamePlayService {
         }
 
         long price = getCellPrice(cell);
-        long upgradeCost = Math.max(UPGRADE_BASE_COST, (long) (price * 0.5));
+        long upgradeCost = upgradeCostForCell(cell);
+        Long houseValue =
+                property != null && property.getOwnerPlayer() != null
+                        ? getHouseValue(cell, property)
+                        : null;
+        long estimatedRent;
+        if (property != null && property.getOwnerPlayer() != null) {
+            estimatedRent = calculateRent(cell, property);
+        } else {
+            estimatedRent = rentBaseLandOnly(cell);
+        }
+        boolean insolvent = "INSOLVENT".equalsIgnoreCase(turnState);
         boolean actionPhase = "ACTION_REQUIRED".equalsIgnoreCase(turnState);
-        boolean canBuy = actionPhase
+        boolean canBuy = !insolvent && actionPhase
                 && isPurchasableCell(cell)
                 && (property == null || property.getOwnerPlayer() == null)
                 && currentPlayer.getBalance() != null
                 && currentPlayer.getBalance() >= price;
-        boolean canUpgrade = actionPhase
+        boolean canUpgrade = !insolvent && actionPhase
                 && property != null
                 && property.getOwnerPlayer() != null
                 && Objects.equals(property.getOwnerPlayer().getGamePlayerId(), currentPlayer.getGamePlayerId())
@@ -775,11 +1507,13 @@ public class GamePlayService {
                 .name(cell.getName())
                 .type(cell.getType())
                 .price(price)
+                .houseValue(houseValue)
                 .upgradeCost(upgradeCost)
-                .estimatedRent(calculateRent(cell, houseLevel))
+                .estimatedRent(estimatedRent)
                 .ownerGamePlayerId(ownerGamePlayerId)
                 .ownerTurnOrder(ownerTurnOrder)
                 .houseLevel(houseLevel)
+                .purchasable(isPurchasableCell(cell))
                 .canBuy(canBuy)
                 .canUpgrade(canUpgrade)
                 .build();
