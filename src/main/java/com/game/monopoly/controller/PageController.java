@@ -31,6 +31,11 @@ public class PageController {
         return "home/profile";
     }
 
+    @GetMapping("/friends")
+    public String friends() {
+        return "home/friends";
+    }
+
     @GetMapping("/game-history")
     public String gameHistory() {
         return "home/game-history";
@@ -48,7 +53,17 @@ public class PageController {
 
     @GetMapping("/map-editor")
     public String mapEditor() {
-        return "map-editor";
+        return "redirect:/home";
+    }
+
+    @GetMapping("/tournament")
+    public String tournament() {
+        return "redirect:/home";
+    }
+
+    @GetMapping("/tutorial")
+    public String tutorial() {
+        return "redirect:/home";
     }
 
     @GetMapping("/shop")

@@ -5,6 +5,7 @@ import com.game.monopoly.model.enums.GameStatus;
 import com.game.monopoly.model.inGameData.Game;
 import com.game.monopoly.model.inGameData.GamePlayer;
 import com.game.monopoly.model.metaData.Account;
+import com.game.monopoly.model.metaData.Hero;
 import com.game.monopoly.model.metaData.UserProfile;
 import com.game.monopoly.repository.GamePlayerRepository;
 import com.game.monopoly.repository.GameRepository;
@@ -12,6 +13,7 @@ import com.game.monopoly.repository.HeroRepository;
 import com.game.monopoly.repository.AccountRepository;
 import com.game.monopoly.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,14 +22,16 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class UserMeService {
 
     private static final String DEFAULT_AVATAR = "/images/avatar-default.png";
+    /** Phí đổi tên hiển thị (xu). */
+    private static final long DISPLAY_NAME_CHANGE_COST = 1000L;
 
     private final AccountRepository accountRepository;
     private final UserProfileRepository userProfileRepository;
@@ -47,39 +51,18 @@ public class UserMeService {
         int wins = 0;
         long totalWonAssets = 0L;
 
-        GamePlayer latestFinishedGamePlayerForHero = null;
         for (GamePlayer gamePlayer : gamePlayerRepository.findByUserProfileId(userProfileId)) {
             Game game = gameRepository.findById(gamePlayer.getGameId()).orElse(null);
             if (game == null || game.getStatus() != GameStatus.FINISHED) {
                 continue;
             }
 
-            // win/loss summary
             matches++;
             Long winnerPlayerId = game.getWinnerPlayerId();
             if (winnerPlayerId != null && Objects.equals(winnerPlayerId, gamePlayer.getGamePlayerId())) {
                 wins++;
                 if (gamePlayer.getBalance() != null) {
                     totalWonAssets += gamePlayer.getBalance();
-                }
-            }
-
-            // hero used: pick latest finished game by endedAt (fallback startedAt)
-            LocalDateTime end = game.getEndedAt();
-            if (end == null) {
-                end = game.getStartedAt();
-            }
-            if (end != null) {
-                if (latestFinishedGamePlayerForHero == null) {
-                    latestFinishedGamePlayerForHero = gamePlayer;
-                } else {
-                    Game latestGame = gameRepository.findById(latestFinishedGamePlayerForHero.getGameId()).orElse(null);
-                    if (latestGame != null) {
-                        LocalDateTime latestEnd = latestGame.getEndedAt() != null ? latestGame.getEndedAt() : latestGame.getStartedAt();
-                        if (latestEnd != null && end.isAfter(latestEnd)) {
-                            latestFinishedGamePlayerForHero = gamePlayer;
-                        }
-                    }
                 }
             }
         }
@@ -91,17 +74,17 @@ public class UserMeService {
             avatarUrl = DEFAULT_AVATAR;
         }
 
+        Hero displayHero = resolveDisplayHero(profile);
         Integer equippedCharacterId = null;
         String equippedCharacterName = null;
         String equippedCharacterImageUrl = null;
-
-        if (latestFinishedGamePlayerForHero != null && latestFinishedGamePlayerForHero.getCharacterId() != null) {
-            equippedCharacterId = latestFinishedGamePlayerForHero.getCharacterId();
-            var hero = heroRepository.findById(equippedCharacterId).orElse(null);
-            if (hero != null) {
-                equippedCharacterName = hero.getName();
-                equippedCharacterImageUrl = "/images/heroes/" + hero.getName().toLowerCase().replace(" ", "-") + ".png";
-            }
+        if (displayHero != null) {
+            equippedCharacterId = displayHero.getCharacterId();
+            equippedCharacterName = displayHero.getName();
+            equippedCharacterImageUrl =
+                    "/images/heroes/"
+                            + displayHero.getName().toLowerCase().replace(" ", "-")
+                            + ".png";
         }
 
         return UserMeSummaryResponse.builder()
@@ -140,6 +123,72 @@ public class UserMeService {
 
         profile.setUsername(trimmedName);
         userProfileRepository.save(profile);
+    /**
+     * Nhân vật hiển thị hồ sơ: {@link UserProfile#getDefaultCharacterId()}, nếu null hoặc không còn tồn tại
+     * thì hero mở mặc định đầu tiên, sau đó hero tồn tại sớm nhất theo {@code character_id}.
+     */
+    private Hero resolveDisplayHero(UserProfile profile) {
+        Integer id = profile.getDefaultCharacterId();
+        if (id != null) {
+            Optional<Hero> byId = heroRepository.findById(id);
+            if (byId.isPresent()) {
+                return byId.get();
+            }
+        }
+        return heroRepository
+                .findFirstByDefaultUnlockedTrueOrderByCharacterIdAsc()
+                .or(
+                        () ->
+                                heroRepository
+                                        .findAll(Sort.by(Sort.Direction.ASC, "characterId"))
+                                        .stream()
+                                        .findFirst())
+                .orElse(null);
+    }
+
+    @Transactional
+    public UserMeSummaryResponse changeDisplayName(Long accountId, String rawNewUsername) {
+        if (accountId == null) {
+            throw new RuntimeException("Cần đăng nhập");
+        }
+        if (rawNewUsername == null || rawNewUsername.isBlank()) {
+            throw new RuntimeException("Tên hiển thị không được để trống");
+        }
+        String trimmed = rawNewUsername.trim();
+        if (trimmed.length() < 2 || trimmed.length() > 80) {
+            throw new RuntimeException("Tên hiển thị từ 2 đến 80 ký tự");
+        }
+
+        Account account =
+                accountRepository
+                        .findById(accountId)
+                        .orElseThrow(() -> new RuntimeException("Account not found"));
+        UserProfile profile =
+                userProfileRepository
+                        .findByAccount_AccountId(account.getAccountId())
+                        .orElseThrow(() -> new RuntimeException("UserProfile not found"));
+
+        if (trimmed.equals(profile.getUsername())) {
+            throw new RuntimeException("Tên mới phải khác tên hiện tại");
+        }
+
+        Optional<UserProfile> taken = userProfileRepository.findByUsername(trimmed);
+        if (taken.isPresent()
+                && !taken.get().getUserProfileId().equals(profile.getUserProfileId())) {
+            throw new RuntimeException("Tên này đã được người khác sử dụng");
+        }
+
+        long gold = profile.getGold() == null ? 0L : profile.getGold();
+        if (gold < DISPLAY_NAME_CHANGE_COST) {
+            throw new RuntimeException(
+                    "Đổi tên cần " + DISPLAY_NAME_CHANGE_COST + " xu (bạn đang có " + gold + " xu)");
+        }
+
+        profile.setGold(gold - DISPLAY_NAME_CHANGE_COST);
+        profile.setUsername(trimmed);
+        userProfileRepository.save(profile);
+
+        return getSummary(accountId);
     }
 
     public String updateAvatar(Long accountId, MultipartFile avatar) {

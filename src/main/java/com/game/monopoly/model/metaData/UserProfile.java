@@ -40,6 +40,10 @@ public class UserProfile {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
+    /** Nhân vật mặc định khi vào bàn / hiển thị hồ sơ (FK logic tới Hero.character_id). */
+    @Column(name = "default_character_id")
+    private Integer defaultCharacterId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/private-table.css">
+    <link rel="stylesheet" href="/character/character.css">
 </head>
 <body>
 <div class="private-room">
@@ -50,13 +51,6 @@
             <div class="room-code-display">Room: <strong id="roomCode">-</strong></div>
             <button type="button" class="icon-chip" data-action="copy-code" aria-label="Sao chep ma phong">⧉</button>
         </div>
-
-        <div class="mode-buttons" id="modeButtons">
-            <button type="button" class="mode-button" data-mode="TWO_VS_TWO">2X2</button>
-            <button type="button" class="mode-button" data-mode="QUICK_GAME">QUICK GAME</button>
-            <button type="button" class="mode-button" data-mode="NO_GADGETS">NO GADGETS</button>
-            <button type="button" class="mode-button" data-mode="FANTASY">FANTASY</button>
-        </div>
     </section>
 
     <main class="room-layout room-layout-wide">
@@ -65,6 +59,7 @@
                 <div class="hero-selection-header">
                     <div class="hero-current-media">
                         <img id="selectedHeroImage" class="hero-current-image" src="" alt="Hero hien tai">
+                        <div id="selectedHeroSvgHost" class="hero-current-svg-host" hidden></div>
                         <div id="heroEmptyState" class="hero-empty-state">No hero selected</div>
                     </div>
                     <div class="hero-current-info">
@@ -111,6 +106,9 @@
         </div>
     </div>
 </div>
+
 <script src="/js/private-table.js?v=4"></script>
+<script src="/js/hero-system.js"></script>
+
 </body>
 </html>

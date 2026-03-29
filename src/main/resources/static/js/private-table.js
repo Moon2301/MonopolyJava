@@ -18,7 +18,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const startButton = document.getElementById("startButton");
     const playerCount = document.getElementById("playerCount");
     const tableStatus = document.getElementById("tableStatus");
-    const modeButtons = document.querySelectorAll(".mode-button");
 
     let roomState = null;
     let heroes = [];
@@ -86,13 +85,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         element.style.backgroundImage = "";
         element.textContent = (username || "P").slice(0, 2).toUpperCase();
-    };
-
-    const renderModeButtons = () => {
-        const currentMode = roomState?.room?.mode;
-        modeButtons.forEach((button) => {
-            button.classList.toggle("active", button.getAttribute("data-mode") === currentMode);
-        });
     };
 
     const renderSelectedHero = () => {
@@ -217,8 +209,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const hero = resolveSlotHero(player);
         const heroName = hero?.name || "No hero selected";
         const heroImageUrl = hero?.imageUrl || "";
-        const readyText = player.isReady ? "READY" : "NOT READY";
-        const readyClass = player.isReady ? "ready-on" : "ready-off";
+        let readyText;
+        let readyClass;
+        if (player.isHost) {
+            readyText = "Chủ phòng";
+            readyClass = "ready-host";
+        } else {
+            readyText = player.isReady ? "READY" : "NOT READY";
+            readyClass = player.isReady ? "ready-on" : "ready-off";
+        }
         const avatarMarkup = player.avatarUrl
             ? `<img class="slot-avatar-image" src="${player.avatarUrl}" alt="${player.username}">`
             : `<span>${(player.username || "P").slice(0, 2).toUpperCase()}</span>`;
@@ -327,7 +326,6 @@ document.addEventListener("DOMContentLoaded", () => {
             playerCount.textContent = `${roomState?.players?.length || 0}/${roomState?.room?.maxPlayers || 4} players`;
         }
 
-        renderModeButtons();
         renderSelectedHero();
         renderHeroList();
         renderPlayerSlots();

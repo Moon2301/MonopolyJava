@@ -5,7 +5,7 @@ window.onload = () => {
     const playerName = document.getElementById("playerName");
     const playerCoins = document.getElementById("playerCoins");
     const playerTickets = document.getElementById("playerTickets");
-    const toolbarToggleButton = document.getElementById("toolbarToggleButton");
+    const playerProfileBanner = document.getElementById("playerProfileBanner");
     const roomCodeInput = document.getElementById("roomCodeInput");
     const createRoomButton = document.getElementById("createRoomButton");
     const joinRoomButton = document.getElementById("joinRoomButton");
@@ -170,8 +170,15 @@ window.onload = () => {
         });
     });
 
-    toolbarToggleButton?.addEventListener("click", () => {
-        homeMenu?.classList.toggle("toolbar-open");
+    const openProfile = () => {
+        window.location.href = "/profile";
+    };
+    playerProfileBanner?.addEventListener("click", openProfile);
+    playerProfileBanner?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openProfile();
+        }
     });
 
     createRoomButton?.addEventListener("click", createRoom);

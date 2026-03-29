@@ -19,7 +19,7 @@ public class UserMeSummaryResponse {
     private Integer winRate;
     private Long totalWonAssets;
 
-    // Hero/character user is using (based on latest finished game)
+    /** Nhân vật mặc định (hồ sơ / bàn chơi). */
     private Integer equippedCharacterId;
     private String equippedCharacterName;
     private String equippedCharacterImageUrl;

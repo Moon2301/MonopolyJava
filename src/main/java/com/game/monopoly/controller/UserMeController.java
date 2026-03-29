@@ -1,5 +1,6 @@
 package com.game.monopoly.controller;
 
+import com.game.monopoly.dto.ChangeDisplayNameRequest;
 import com.game.monopoly.dto.UserMeSummaryResponse;
 import com.game.monopoly.dto.UserMeAvatarResponse;
 import com.game.monopoly.service.UserMeService;
@@ -26,6 +27,15 @@ public class UserMeController {
     @GetMapping("/summary")
     public UserMeSummaryResponse getSummary(@RequestHeader(name = "X-Account-Id", required = false) Long accountId) {
         return userMeService.getSummary(accountId);
+    }
+
+    @PostMapping("/display-name")
+    public UserMeSummaryResponse changeDisplayName(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @RequestBody(required = false) ChangeDisplayNameRequest body
+    ) {
+        String name = body != null ? body.getNewUsername() : null;
+        return userMeService.changeDisplayName(accountId, name);
     }
 
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

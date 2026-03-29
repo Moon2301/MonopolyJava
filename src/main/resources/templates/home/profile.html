@@ -39,20 +39,40 @@
                 </div>
 
                 <div class="profile-actions">
+                    <button type="button" id="changeNameButton" class="profile-action-link change-name-btn">
+                        Đổi tên <span class="rename-cost">(1.000 Xu)</span>
+                    </button>
                     <a class="profile-action-link" href="/game-history">Lịch sử đấu</a>
                     <button type="button" id="logoutButton" class="profile-action-link logout-action-btn">Đăng xuất</button>
                 </div>
+                <p id="renameHint" class="rename-hint" aria-live="polite"></p>
             </div>
         </div>
     </section>
 
     <section class="equipped-character-card">
         <p class="section-tag">Nhân vật đang sử dụng</p>
+        <p class="equipped-character-sub">Nhân vật mặc định khi vào bàn chơi</p>
         <div class="equipped-character-content">
-            <img id="equippedCharacterImage" class="equipped-character-image" alt="Hình nhân vật">
+            <img id="equippedCharacterImage" class="equipped-character-image" alt="Hình nhân vật" hidden>
             <div id="equippedCharacterName" class="equipped-character-name">-</div>
         </div>
     </section>
+
+    <div id="renameModal" class="rename-modal" hidden aria-hidden="true" role="dialog" aria-labelledby="renameModalTitle">
+        <div class="rename-modal__backdrop" data-close-rename="1"></div>
+        <div class="rename-modal__panel">
+            <h2 id="renameModalTitle" class="rename-modal__title">Đổi tên hiển thị</h2>
+            <p class="rename-modal__cost">Phí: <strong>1.000 Xu</strong> (trừ ngay khi xác nhận)</p>
+            <label class="rename-modal__label" for="renameInput">Tên mới</label>
+            <input type="text" id="renameInput" class="rename-modal__input" maxlength="80" autocomplete="nickname" placeholder="Nhập tên hiển thị mới">
+            <p id="renameModalError" class="rename-modal__error" role="alert"></p>
+            <div class="rename-modal__actions">
+                <button type="button" class="rename-modal__btn rename-modal__btn--ghost" data-close-rename="1">Hủy</button>
+                <button type="button" id="renameConfirmButton" class="rename-modal__btn rename-modal__btn--primary">Xác nhận đổi tên</button>
+            </div>
+        </div>
+    </div>
 
     <section class="panel stats-panel">
         <p class="section-tag">Thống kê</p>

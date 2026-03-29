@@ -18,6 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const upgradePropertyButton = document.getElementById("upgradePropertyButton");
     const gameActionStatus = document.getElementById("gameActionStatus");
     const currentCellName = document.getElementById("currentCellName");
+    const currentCellRent = document.getElementById("currentCellRent");
     const currentCellPriceTax = document.getElementById("currentCellPriceTax");
     const currentCellUpgrade = document.getElementById("currentCellUpgrade");
     const currentCellOwnerBlock = document.getElementById("currentCellOwnerBlock");
@@ -29,8 +30,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     const turnTopBanner = document.getElementById("turnTopBanner");
     const moneyFxLayer = document.getElementById("moneyFxLayer");
     const boardStageEl = document.querySelector(".board-stage");
+    const debtCrisisModal = document.getElementById("debtCrisisModal");
+    const debtCrisisSummary = document.getElementById("debtCrisisSummary");
+    const debtAssetList = document.getElementById("debtAssetList");
+    const debtBankruptButton = document.getElementById("debtBankruptButton");
+    if (debtCrisisModal) {
+        debtCrisisModal.hidden = true;
+        debtCrisisModal.setAttribute("aria-hidden", "true");
+    }
 
     let turnTimerInterval = null;
+    let livePollIntervalId = null;
     let lastLiveState = null;
     let diceRollingTimer = null;
     let yourTurnHideTimer = null;
@@ -43,6 +53,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let stateApplyChain = Promise.resolve();
     /** null = hiển thị ô của bạn / ô chính; số = đang hover ô đó */
     let hoverBoardIndex = null;
+    let debtActionInFlight = false;
 
     const prefersReducedMotion = () =>
         typeof window.matchMedia === "function" &&
@@ -287,6 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             name: item.name,
             type: displayType,
             price,
+            baseRent: item.baseRent != null && item.baseRent !== "" ? Number(item.baseRent) : null,
             color: item.colorHex || ""
         };
     };
@@ -327,7 +339,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: 0,
             avatarUrl: "/images/avatar-default.png",
             heroImageUrl: null,
-            heroName: null
+            heroName: null,
+            isBot: false
         },
         {
             id: 2,
@@ -338,7 +351,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: 7,
             avatarUrl: "/images/avatar-default.png",
             heroImageUrl: null,
-            heroName: null
+            heroName: null,
+            isBot: false
         },
         {
             id: 3,
@@ -349,7 +363,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: 18,
             avatarUrl: "/images/avatar-default.png",
             heroImageUrl: null,
-            heroName: null
+            heroName: null,
+            isBot: false
         },
         {
             id: 4,
@@ -360,7 +375,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: 28,
             avatarUrl: "/images/avatar-default.png",
             heroImageUrl: null,
-            heroName: null
+            heroName: null,
+            isBot: false
         }
     ];
     const isBotMode = urlParams.get("vsBot") === "1";
@@ -378,7 +394,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 position: 0,
                 avatarUrl: "/images/avatar-default.png",
                 heroImageUrl: null,
-                heroName: null
+                heroName: null,
+                isBot: false
             },
             {
                 id: 2,
@@ -389,15 +406,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 position: 7,
                 avatarUrl: null,
                 heroImageUrl: "/images/heroes/bot.png",
-                heroName: null
+                heroName: null,
+                isBot: true
             }
         ]
         : defaultPlayers;
 
-    const chatMessages = [
-        { user: "Player1", message: "hello" },
-        { user: "Player2", message: "let's start" }
-    ];
+    const chatMessages = [];
 
     let activePlayerIndex = 0;
 
@@ -486,20 +501,43 @@ document.addEventListener("DOMContentLoaded", async () => {
         return true;
     };
 
+    const isTaxLike = (layout, api) => {
+        if (api?.type && String(api.type).toUpperCase().includes("TAX")) return true;
+        return layout?.type === "tax";
+    };
+
+    const isCellPurchasable = (layout, api, useApi) => {
+        if (!layout) return false;
+        if (useApi && api && typeof api.purchasable === "boolean") {
+            return api.purchasable;
+        }
+        return layout.type === "property";
+    };
+
+    const skillShortLabel = (name) => {
+        const s = String(name || "?").trim();
+        return s.length <= 2 ? s : s.slice(0, 2);
+    };
+
     const refreshCellInfoPanel = (state) => {
         const s = state ?? lastLiveState;
         const L = cells.length;
+        const turnP =
+            isLiveGame && s?.currentPlayerOrder != null
+                ? players.find((p) => p.id === s.currentPlayerOrder)
+                : null;
         const idx =
             hoverBoardIndex != null && hoverBoardIndex >= 0
                 ? hoverBoardIndex
-                : isLiveGame && getMyPlayer()
-                  ? getMyPlayer().position
+                : isLiveGame && turnP
+                  ? turnP.position
                   : Math.max(0, players[activePlayerIndex]?.position ?? 0);
         const safeIdx = L ? ((idx % L) + L) % L : 0;
         const layout = cells[safeIdx];
 
         if (!layout) {
             if (currentCellName) currentCellName.textContent = "—";
+            if (currentCellRent) currentCellRent.textContent = "—";
             if (currentCellPriceTax) currentCellPriceTax.textContent = "—";
             if (currentCellUpgrade) currentCellUpgrade.textContent = "—";
             if (currentCellOwnerBlock) currentCellOwnerBlock.textContent = "—";
@@ -508,17 +546,36 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const useApi = apiCellMatchesBoardIndex(s, safeIdx);
         const api = useApi ? s.currentCell : null;
+        const purchasable = isCellPurchasable(layout, api, useApi);
 
         if (currentCellName) {
             currentCellName.textContent = api?.name || layout.name || "—";
         }
 
+        if (currentCellRent) {
+            if (api) {
+                if (isTaxLike(layout, api)) {
+                    currentCellRent.textContent = "Thuê ô: không áp dụng";
+                } else if (api.estimatedRent != null) {
+                    currentCellRent.textContent = `Thuê (ước): ${formatMoney(api.estimatedRent)}`;
+                } else {
+                    currentCellRent.textContent = "Thuê: —";
+                }
+            } else if (layout.type === "property" && layout.baseRent != null) {
+                currentCellRent.textContent = `Thuê (cơ sở): ${formatMoney(layout.baseRent)}`;
+            } else if (layout.type === "tax") {
+                currentCellRent.textContent = "Thuê ô: không áp dụng";
+            } else {
+                currentCellRent.textContent = "Thuê: không áp dụng";
+            }
+        }
+
         if (currentCellPriceTax) {
             if (api) {
-                if (layout.type === "tax" || (api.type && String(api.type).toUpperCase().includes("TAX"))) {
-                    currentCellPriceTax.textContent = `Thuế / phí: ${formatMoney(api.price)}`;
+                if (isTaxLike(layout, api)) {
+                    currentCellPriceTax.textContent = `Thuế / phí khi vào ô: ${formatMoney(api.price)}`;
                 } else if (api.price != null && api.price > 0) {
-                    currentCellPriceTax.textContent = `Giá mua đất: ${formatMoney(api.price)}`;
+                    currentCellPriceTax.textContent = `Giá mua: ${formatMoney(api.price)}`;
                 } else {
                     currentCellPriceTax.textContent = layout.price || "Không áp dụng giá mua";
                 }
@@ -535,7 +592,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         if (currentCellUpgrade) {
             if (api && layout.type === "property") {
-                currentCellUpgrade.textContent = `Cấp hiện tại: ${api.houseLevel ?? 0} · Nâng cấp kế: ${formatMoney(api.upgradeCost ?? 0)}`;
+                const hv =
+                    api.houseValue != null
+                        ? `Giá nhà: ${formatMoney(api.houseValue)} · `
+                        : "";
+                currentCellUpgrade.textContent = `${hv}Cấp: ${api.houseLevel ?? 0} · Nâng cấp kế: ${formatMoney(
+                    api.upgradeCost ?? 0
+                )}`;
             } else if (layout.type === "property") {
                 const n = parsePriceFromLayout(layout.price);
                 const guess = n != null ? Math.max(100, Math.floor(n * 0.5)) : null;
@@ -549,8 +612,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         if (currentCellOwnerBlock) {
-            const ot = api?.ownerTurnOrder ?? ownerTurnAtIndex(s, safeIdx);
-            currentCellOwnerBlock.textContent = ot ? getPlayerLabelByOrder(ot) : "Chưa có";
+            if (!purchasable) {
+                currentCellOwnerBlock.textContent = "không thể mua";
+            } else {
+                const ot = api?.ownerTurnOrder ?? ownerTurnAtIndex(s, safeIdx);
+                currentCellOwnerBlock.textContent = ot ? getPlayerLabelByOrder(ot) : "Chưa có";
+            }
         }
     };
 
@@ -660,11 +727,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const buildPlayerCards = () => {
-        players.forEach((player, index) => {
+        for (let index = 0; index < 4; index += 1) {
             const card = document.getElementById(`playerCard${index + 1}`);
-            if (!card) {
-                return;
+            if (!card) continue;
+            if (index >= players.length) {
+                card.innerHTML = "";
+                card.classList.remove("player-info--active-turn");
+                card.style.removeProperty("--turn-ring");
+                card.style.visibility = "hidden";
+                continue;
             }
+            card.style.visibility = "";
+            const player = players[index];
             const src = portraitForPlayer(player);
             let chipInner;
             if (src) {
@@ -675,18 +749,51 @@ document.addEventListener("DOMContentLoaded", async () => {
                 chipInner = `<span class="player-chip-fallback">${escapeHtml(player.avatar)}</span>`;
             }
 
+            const myTurnNow = lastLiveState?.myTurn === true;
+            const skillsLines = (player.skills || [])
+                .map((s) => {
+                    const passive =
+                        s.passiveActive ||
+                        (s.triggerType && String(s.triggerType).toUpperCase().includes("PASSIVE"));
+                    const title = `${s.name || "Skill"}${s.description ? " — " + s.description : ""}`;
+                    if (passive) {
+                        return `<span class="player-skill-chip player-skill-chip--passive" title="${escapeAttr(
+                            title
+                        )}">${escapeHtml(skillShortLabel(s.name))}</span>`;
+                    }
+                    const canClick =
+                        isLiveGame &&
+                        myTurnNow &&
+                        !player.isBot &&
+                        player.id === lastLiveState?.currentPlayerOrder &&
+                        s.readyToActivate &&
+                        s.skillId != null;
+                    const dis = canClick ? "" : " disabled";
+                    return `<button type="button" class="player-skill-chip player-skill-chip--active"${dis} data-skill-id="${escapeAttr(
+                        String(s.skillId ?? "")
+                    )}" title="${escapeAttr(title)}">${escapeHtml(skillShortLabel(s.name))}</button>`;
+                })
+                .join("");
+            const jailBadge = player.inJail
+                ? `<div class="player-jail-badge" title="Đang trong tù">Tù · ${player.jailFailedRolls ?? 0}/3</div>`
+                : "";
+
             card.innerHTML = `
-                <div class="player-chip-wrap player-chip-wrap--animated">
-                    <div class="player-chip player-chip--portrait" style="--chip-ring:${player.color}">
-                        ${chipInner}
+                <div class="player-card-main">
+                    <div class="player-chip-wrap player-chip-wrap--animated">
+                        <div class="player-chip player-chip--portrait" style="--chip-ring:${player.color}">
+                            ${chipInner}
+                        </div>
+                    </div>
+                    <div class="player-meta">
+                        <strong>${escapeHtml(player.username)}</strong>
+                        <span>$${player.money.toLocaleString("en-US")}</span>
+                        ${jailBadge}
                     </div>
                 </div>
-                <div class="player-meta">
-                    <strong>${escapeHtml(player.username)}</strong>
-                    <span>$${player.money.toLocaleString("en-US")}</span>
-                </div>
+                <div class="player-skills" aria-label="Kỹ năng">${skillsLines || '<span class="player-skill-empty">—</span>'}</div>
             `;
-        });
+        }
 
         if (window.HeroSystem) {
             window.requestAnimationFrame(() => {
@@ -700,13 +807,43 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const renderChat = () => {
-        chatMessagesElement.innerHTML = chatMessages.map((item) => `
-            <article class="chat-bubble">
-                <strong>${item.user}</strong>
-                <p>${item.message}</p>
-            </article>
-        `).join("");
+        if (!chatMessagesElement) return;
+        chatMessagesElement.innerHTML = chatMessages
+            .map((item) => {
+                const sys = item.system ? " chat-bubble--system" : "";
+                return `
+            <article class="chat-bubble${sys}">
+                <strong>${escapeHtml(item.user)}</strong>
+                <p>${escapeHtml(item.message)}</p>
+            </article>`;
+            })
+            .join("");
         chatMessagesElement.scrollTop = chatMessagesElement.scrollHeight;
+    };
+
+    const appendRentNoticesToChat = (state) => {
+        const list = state?.rentNotices;
+        if (!list || !list.length) return;
+        for (const n of list) {
+            const payer = n.payerName || "?";
+            const owner = n.ownerName || "?";
+            const cell = n.cellName || "ô";
+            const amt = n.amountPaid ?? 0;
+            const msg = `${payer} đã tiêu ${formatMoney(amt)} tiền ở ${cell} (trả cho ${owner}).`;
+            chatMessages.push({ user: "Hệ thống", message: msg, system: true });
+        }
+        renderChat();
+    };
+
+    const appendGameLogsToChat = (state) => {
+        const lines = state?.gameLogLines;
+        if (!lines || !lines.length) return;
+        for (const line of lines) {
+            if (typeof line === "string" && line.trim()) {
+                chatMessages.push({ user: "Hệ thống", message: line.trim(), system: true });
+            }
+        }
+        renderChat();
     };
 
     /** Tọa độ layout (px) từ góc trên-trái của ancestor (bỏ qua transform màn hình). */
@@ -946,6 +1083,69 @@ document.addEventListener("DOMContentLoaded", async () => {
         }, 1050);
     };
 
+    const updateDebtCrisisUi = (state) => {
+        if (!debtCrisisModal) return;
+        if (!state || !state.players) {
+            debtCrisisModal.hidden = true;
+            debtCrisisModal.setAttribute("aria-hidden", "true");
+            return;
+        }
+        const playing = String(state.status || "").toUpperCase() === "PLAYING";
+        const myTurn = state.myTurn === true;
+        const ts = state.turnState || "";
+        const ds = state.debtSituation;
+        const owed = ds != null ? Number(ds.amountOwed) : NaN;
+        const debtOk =
+            ds != null &&
+            Number.isFinite(owed) &&
+            owed > 0 &&
+            (ds.creditorName != null || ds.creditorTurnOrder != null);
+        const show = isLiveGame && playing && myTurn && ts === "INSOLVENT" && debtOk;
+        if (!show) {
+            debtCrisisModal.hidden = true;
+            debtCrisisModal.setAttribute("aria-hidden", "true");
+            if (debtAssetList) debtAssetList.innerHTML = "";
+            return;
+        }
+        debtCrisisModal.hidden = false;
+        debtCrisisModal.setAttribute("aria-hidden", "false");
+        if (debtCrisisSummary) {
+            debtCrisisSummary.textContent = `Bạn nợ ${formatMoney(ds.amountOwed)} khi vào ô «${
+                ds.causeCellName || "Ô"
+            }». Chủ nợ: ${ds.creditorName || "—"}.`;
+        }
+        if (debtAssetList) {
+            debtAssetList.innerHTML = "";
+            const assetArr = ds.assets || [];
+            if (!assetArr.length) {
+                const li = document.createElement("li");
+                li.className = "debt-asset-item debt-asset-item--empty";
+                li.textContent =
+                    "Không còn tài sản để bán / thế chấp — chỉ có thể phá sản hoặc đợi hết giờ lượt.";
+                debtAssetList.appendChild(li);
+            }
+            assetArr.forEach((a) => {
+                const li = document.createElement("li");
+                li.className = "debt-asset-item";
+                const actionLabel = a.suggestedAction === "SELL_HOUSE" ? "Bán 1 nhà" : "Thế chấp ô";
+                const meta = document.createElement("div");
+                meta.className = "debt-asset-meta";
+                meta.innerHTML = `<div class="debt-asset-name">${escapeHtml(a.name)}</div>
+                    <div class="debt-asset-detail">${actionLabel} · +${formatMoney(a.cashIfSold)}</div>`;
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "debt-asset-sell";
+                btn.textContent = actionLabel;
+                if (a.cellId != null) btn.dataset.cellId = String(a.cellId);
+                btn.disabled = debtActionInFlight;
+                li.appendChild(meta);
+                li.appendChild(btn);
+                debtAssetList.appendChild(li);
+            });
+        }
+        if (debtBankruptButton) debtBankruptButton.disabled = debtActionInFlight;
+    };
+
     async function applyStateInternal(state, opts = {}) {
         stopTurnTimer();
         lastLiveState = state;
@@ -975,7 +1175,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 position: p.position || 0,
                 avatarUrl: p.avatarUrl || null,
                 heroImageUrl: p.heroImageUrl || null,
-                heroName: p.heroName || null
+                heroName: p.heroName || null,
+                isBot: Boolean(p.isBot),
+                inJail: Boolean(p.inJail),
+                jailFailedRolls: p.jailFailedRolls ?? 0,
+                skills: Array.isArray(p.skills) ? p.skills : []
             });
         });
 
@@ -1019,7 +1223,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (state.lastDice1 != null && state.lastDice2 != null) {
             setDieVisual(die1, state.lastDice1);
             setDieVisual(die2, state.lastDice2);
-            diceTotal.textContent = `Tổng: ${state.lastDice1 + state.lastDice2}`;
+            const isDouble = state.lastDice1 === state.lastDice2;
+            diceTotal.textContent = `Tổng: ${state.lastDice1 + state.lastDice2}${
+                isDouble && playing ? " · Đôi!" : ""
+            }`;
         }
 
         if (isLiveGame) {
@@ -1039,7 +1246,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             const showTimer =
-                myTurn && playing && typeof state.turnSecondsRemaining === "number";
+                myTurn &&
+                playing &&
+                typeof state.turnSecondsRemaining === "number" &&
+                (ts === "WAIT_ROLL" || ts === "ACTION_REQUIRED" || ts === "INSOLVENT");
             updateTurnTimerDisplay(state.turnSecondsRemaining, showTimer);
             if (showTimer) {
                 let localSec = state.turnSecondsRemaining;
@@ -1085,6 +1295,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         updateTurnBanner(state);
         refreshCellInfoPanel(state);
+        updateDebtCrisisUi(state);
+        appendRentNoticesToChat(state);
+        appendGameLogsToChat(state);
+
+        if (isLiveGame) {
+            if (livePollIntervalId != null) {
+                window.clearInterval(livePollIntervalId);
+                livePollIntervalId = null;
+            }
+            const playing = String(state.status || "").toUpperCase() === "PLAYING";
+            const im = state.myTurn === true;
+            const pollMs = playing && !im ? 450 : 2800;
+            livePollIntervalId = window.setInterval(loadLiveState, pollMs);
+        } else if (livePollIntervalId != null) {
+            window.clearInterval(livePollIntervalId);
+            livePollIntervalId = null;
+        }
     }
 
     const syncFromState = (state, opts = {}) => {
@@ -1107,6 +1334,60 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         return response.json();
     };
+
+    const callDebtSell = async (cellId) => {
+        const response = await fetch(`/api/gameplay/${gameId}/debt/sell`, {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify({ cellId: Number(cellId) })
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || "Không bán được tài sản");
+        }
+        return response.json();
+    };
+
+    const callDebtBankrupt = async () => {
+        const response = await fetch(`/api/gameplay/${gameId}/debt/bankrupt`, {
+            method: "POST",
+            headers: authHeaders(true),
+            body: "{}"
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || "Không thực hiện được phá sản");
+        }
+        return response.json();
+    };
+
+    const callSkillActivate = async (skillId) => {
+        const response = await fetch(`/api/gameplay/${gameId}/skill/activate`, {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify({ skillId: Number(skillId) })
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || "Không kích hoạt được kỹ năng");
+        }
+        return response.json();
+    };
+
+    document.addEventListener("click", async (e) => {
+        const btn = e.target.closest(".player-skill-chip--active");
+        if (!btn || btn.disabled || !isLiveGame || !gameId) return;
+        const sid = btn.dataset.skillId;
+        if (!sid) return;
+        e.preventDefault();
+        try {
+            const data = await callSkillActivate(sid);
+            await syncFromState(data.state);
+            setActionStatus(data.message || "Đã kích hoạt kỹ năng");
+        } catch (error) {
+            setActionStatus(error.message || "Kỹ năng thất bại", true);
+        }
+    });
 
     const loadLiveState = async () => {
         const response = await fetch(`/api/gameplay/${gameId}/state`, {
@@ -1173,6 +1454,45 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     });
 
+    debtAssetList?.addEventListener("click", async (e) => {
+        const btn = e.target.closest(".debt-asset-sell");
+        if (!btn || btn.disabled || debtActionInFlight) return;
+        const cid = btn.dataset.cellId;
+        if (cid == null || cid === "") return;
+        debtActionInFlight = true;
+        btn.disabled = true;
+        if (debtBankruptButton) debtBankruptButton.disabled = true;
+        try {
+            const data = await callDebtSell(cid);
+            await syncFromState(data.state);
+            setActionStatus(data.message || "Đã xử lý tài sản");
+        } catch (error) {
+            setActionStatus(error.message || "Thao tác thất bại", true);
+            if (lastLiveState) await syncFromState(lastLiveState);
+        } finally {
+            debtActionInFlight = false;
+        }
+    });
+
+    debtBankruptButton?.addEventListener("click", async () => {
+        if (!isLiveGame || debtActionInFlight) return;
+        debtActionInFlight = true;
+        debtAssetList?.querySelectorAll(".debt-asset-sell").forEach((b) => {
+            b.disabled = true;
+        });
+        debtBankruptButton.disabled = true;
+        try {
+            const data = await callDebtBankrupt();
+            await syncFromState(data.state);
+            setActionStatus(data.message || "Đã phá sản");
+        } catch (error) {
+            setActionStatus(error.message || "Thao tác thất bại", true);
+            if (lastLiveState) await syncFromState(lastLiveState);
+        } finally {
+            debtActionInFlight = false;
+        }
+    });
+
     chatForm.addEventListener("submit", (event) => {
         event.preventDefault();
         const message = chatInput.value.trim();
@@ -1187,6 +1507,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         chatInput.value = "";
         renderChat();
     });
+
+    try {
+        if (window.HeroSystem?.preloadCharacterSvgs) {
+            await window.HeroSystem.preloadCharacterSvgs();
+        }
+    } catch (e) {
+        console.warn("Hero SVG preload failed", e);
+    }
 
     await loadBoardLayout();
     buildBoard();
@@ -1206,7 +1534,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.addEventListener("resize", renderTokens);
     updateTurnBanner(null);
     if (isLiveGame) {
-        loadLiveState();
-        window.setInterval(loadLiveState, 3000);
+        void loadLiveState();
     }
 });
