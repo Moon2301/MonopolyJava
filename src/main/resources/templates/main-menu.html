@@ -21,8 +21,7 @@
     <div class="backdrop-shape shape-c"></div>
 
     <header class="top-header">
-        <section class="player-banner" data-route="/profile" style="cursor: pointer;" aria-label="Hồ sơ người chơi">
-        <section class="player-banner" id="playerProfileBanner" role="link" tabindex="0" title="Hồ sơ cá nhân" aria-label="Mở hồ sơ cá nhân">
+        <section class="player-banner" id="playerProfileBanner" data-route="/profile" role="link" tabindex="0" title="Hồ sơ cá nhân" aria-label="Mở hồ sơ cá nhân" style="cursor: pointer;">
             <div class="player-avatar-frame">
                 <img class="player-avatar" id="playerAvatar" src="/images/avatar-default.png" alt="Avatar">
             </div>
@@ -38,14 +37,14 @@
         <div class="title-ribbon">MAIN MENU</div>
 
         <nav class="header-icons" aria-label="Dieu huong dau trang">
-            <button type="button" class="circle-icon" id="openFriendsBtn" aria-label="Ban be" title="Quản lý bạn bè" style="position: relative;">
+            <button type="button" class="circle-icon icon-friends" id="openFriendsBtn" aria-label="Ban be" title="Quản lý bạn bè" style="position: relative;">
                 <span>👥</span>
                 <span id="friendBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ff5252; color: #fff; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; font-weight: bold; justify-content: center; align-items: center; border: 2px solid var(--bg-dark, #2a2a3e);">0</span>
             </button>
-            <button type="button" class="circle-icon" data-route="/shop" aria-label="Cua hang">
+            <button type="button" class="circle-icon icon-shop" data-route="/shop" aria-label="Cua hang">
                 <span>🛒</span>
             </button>
-            <button type="button" class="circle-icon close" data-route="/login" aria-label="Đăng xuất">
+            <button type="button" class="circle-icon close icon-close" data-route="/login" aria-label="Đăng xuất">
                 <span>✕</span>
             </button>
         </nav>

@@ -26,7 +26,7 @@ public class SocialController {
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
             @RequestBody FriendRequestDto request
     ) {
-        return socialService.sendFriendRequest(accountId, request.getFriendUsername());
+        return socialService.sendFriendRequest(accountId, request.getUsername());
     }
 
     @PostMapping("/friends/{friendId}/accept")

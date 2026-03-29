@@ -123,6 +123,8 @@ public class UserMeService {
 
         profile.setUsername(trimmedName);
         userProfileRepository.save(profile);
+    }
+
     /**
      * Nhân vật hiển thị hồ sơ: {@link UserProfile#getDefaultCharacterId()}, nếu null hoặc không còn tồn tại
      * thì hero mở mặc định đầu tiên, sau đó hero tồn tại sớm nhất theo {@code character_id}.
