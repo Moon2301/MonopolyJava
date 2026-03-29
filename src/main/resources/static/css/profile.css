@@ -358,6 +358,37 @@ body {
     color: var(--muted);
 }
 
+.current-hero-card {
+    min-height: auto;
+}
+
+.current-hero-label {
+    display: block;
+    margin-top: 12px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+.current-hero-select {
+    width: 100%;
+    max-width: 420px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.current-hero-select:focus {
+    outline: 2px solid rgba(129, 140, 248, 0.6);
+    outline-offset: 2px;
+}
+
 @media (max-width: 1080px) {
     .profile-page {
         grid-template-columns: 1fr;

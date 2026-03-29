@@ -49,6 +49,7 @@ public class RoomService {
     private final GamePlayerRepository gamePlayerRepository;
     private final PasswordEncoder passwordEncoder;
     private final HeroOwnershipService heroOwnershipService;
+    private final SocialService socialService;
 
     @Transactional(readOnly = true)
     public RoomListResponse getRooms(RoomStatus status, RoomVisibility visibility, int page, int size) {
@@ -198,6 +199,26 @@ public class RoomService {
             currentAvatarUrl = null;
         }
 
+        java.util.Set<Long> profileIdsInRoom =
+                roomPlayers.stream()
+                        .map(rp -> profilesByAccountId.get(rp.getAccount().getAccountId()))
+                        .filter(Objects::nonNull)
+                        .map(UserProfile::getUserProfileId)
+                        .collect(Collectors.toSet());
+
+        List<RoomDetailResponse.InviteFriendDto> inviteFriends =
+                socialService.getFriends(account.getAccountId()).stream()
+                        .filter(f -> "ACCEPTED".equalsIgnoreCase(f.getStatus()))
+                        .filter(f -> !profileIdsInRoom.contains(f.getUserProfileId()))
+                        .map(
+                                f ->
+                                        RoomDetailResponse.InviteFriendDto.builder()
+                                                .userProfileId(f.getUserProfileId())
+                                                .username(f.getUsername())
+                                                .avatarUrl(f.getAvatarUrl())
+                                                .build())
+                        .toList();
+
         return RoomDetailResponse.builder()
                 .room(RoomDetailResponse.RoomDto.builder()
                         .roomId(room.getRoomId())
@@ -208,6 +229,7 @@ public class RoomService {
                         .maxPlayers(room.getMaxPlayers())
                         .status(room.getStatus())
                         .hostPlayerId(room.getHostPlayerId())
+                        .activeGameId(room.getActiveGameId())
                         .build())
                 .currentPlayer(RoomDetailResponse.CurrentPlayerDto.builder()
                         .playerId(account.getAccountId())
@@ -220,6 +242,7 @@ public class RoomService {
                 .players(roomPlayers.stream()
                         .map(player -> toPlayerDto(player, profilesByAccountId, heroesById))
                         .toList())
+                .inviteFriends(inviteFriends)
                 .build();
     }
 
@@ -285,6 +308,58 @@ public class RoomService {
                 .build();
     }
 
+    /**
+     * Gán hero mặc định từ hồ sơ (current hero) hoặc hero sở hữu đầu tiên nếu chưa chọn — dùng từ phòng chờ.
+     */
+    @Transactional
+    public RoomHeroSelectResponse applyDefaultHeroFromProfile(Long roomId, Long accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+        RoomPlayer rp = getRoomPlayer(roomId, account.getAccountId());
+        if (rp.getSelectedHeroId() != null
+                && heroOwnershipService.isHeroOwned(accountId, rp.getSelectedHeroId())) {
+            Hero h = heroRepository.findById(rp.getSelectedHeroId()).orElse(null);
+            return RoomHeroSelectResponse.builder()
+                    .playerId(account.getAccountId())
+                    .selectedHeroId(rp.getSelectedHeroId())
+                    .selectedHeroName(h != null ? h.getName() : null)
+                    .build();
+        }
+        UserProfile profile = getProfile(account.getAccountId());
+        Integer resolved = resolveMandatoryHeroIdForAccount(profile, accountId);
+        rp.setSelectedHeroId(resolved);
+        roomPlayerRepository.save(rp);
+        Hero hero = heroRepository.findById(resolved).orElseThrow();
+        return RoomHeroSelectResponse.builder()
+                .playerId(account.getAccountId())
+                .selectedHeroId(resolved)
+                .selectedHeroName(hero.getName())
+                .build();
+    }
+
+    private Integer resolveMandatoryHeroIdForAccount(UserProfile profile, Long accountId) {
+        Integer cur = profile.getCurrentHeroId();
+        if (cur != null && heroOwnershipService.isHeroOwned(accountId, cur)) {
+            return cur;
+        }
+        Set<Integer> owned = heroOwnershipService.getOwnedHeroIds(accountId);
+        if (owned.isEmpty()) {
+            throw new RuntimeException(
+                    "Bạn chưa có nhân vật — hãy đặt hero mặc định trong Hồ sơ hoặc mở khóa trong Cửa hàng");
+        }
+        return owned.stream().min(Integer::compareTo).orElseThrow();
+    }
+
+    private void ensureSelectedHeroForStart(RoomPlayer rp, UserProfile profile, Long accountId) {
+        if (rp.getSelectedHeroId() != null
+                && heroOwnershipService.isHeroOwned(accountId, rp.getSelectedHeroId())) {
+            return;
+        }
+        Integer resolved = resolveMandatoryHeroIdForAccount(profile, accountId);
+        rp.setSelectedHeroId(resolved);
+        roomPlayerRepository.save(rp);
+    }
+
     @Transactional
     public RoomReadyResponse setReady(Long roomId, RoomReadyRequest request, Long accountId) {
         Account account = accountRepository.findById(accountId)
@@ -327,6 +402,14 @@ public class RoomService {
 
         Map<Long, UserProfile> profilesByAccountId = loadProfilesByAccountId(roomPlayers);
 
+        for (RoomPlayer player : roomPlayers) {
+            UserProfile profile = profilesByAccountId.get(player.getAccount().getAccountId());
+            if (profile == null) {
+                throw new RuntimeException("UserProfile not found for room player");
+            }
+            ensureSelectedHeroForStart(player, profile, player.getAccount().getAccountId());
+        }
+
         Game game = Game.builder()
                 .mapId(1)
                 .createdBy(account.getAccountId())
@@ -336,6 +419,7 @@ public class RoomService {
                 .currentPlayerOrder(1)
                 .turnState("WAIT_ROLL")
                 .version(1)
+                .eliminationSequence(0)
                 .createdAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now())
                 .humanTurnStartedAt(LocalDateTime.now())
@@ -362,11 +446,12 @@ public class RoomService {
         gamePlayerRepository.saveAll(gamePlayers);
 
         room.setStatus(RoomStatus.IN_GAME);
+        room.setActiveGameId(game.getGameId());
         roomRepository.save(room);
 
         return RoomStartResponse.builder()
                 .gameId(game.getGameId())
-                .redirectUrl("/game-board?gameId=" + game.getGameId())
+                .redirectUrl("/game-board?gameId=" + game.getGameId() + "&roomId=" + roomId)
                 .build();
     }
 

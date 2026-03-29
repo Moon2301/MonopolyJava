@@ -11,17 +11,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     const selectedHeroImage = document.getElementById("selectedHeroImage");
     const selectedHeroSvgHost = document.getElementById("selectedHeroSvgHost");
     const selectedHeroName = document.getElementById("selectedHeroName");
+    const heroSkillPanel = document.getElementById("heroSkillPanel");
+    const selectedHeroSkillName = document.getElementById("selectedHeroSkillName");
+    const selectedHeroSkillDesc = document.getElementById("selectedHeroSkillDesc");
+    const selectedHeroSkillCd = document.getElementById("selectedHeroSkillCd");
     const heroEmptyState = document.getElementById("heroEmptyState");
     const heroList = document.getElementById("heroList");
     const playerSlots = document.getElementById("playerSlots");
     const readyButton = document.getElementById("readyButton");
     const playerCount = document.getElementById("playerCount");
     const tableStatus = document.getElementById("tableStatus");
+    const inviteFriendsList = document.getElementById("inviteFriendsList");
+    const inviteFriendsHint = document.getElementById("inviteFriendsHint");
 
     let roomState = null;
     let heroes = [];
     let pollingHandle = null;
     let lastSelectedHeroUid = null;
+    /** Một lần: gán hero mặc định từ hồ sơ nếu chưa chọn. */
+    let defaultHeroSynced = false;
 
     const escapeHtml = (value) =>
         String(value ?? "")
@@ -67,7 +75,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const formatNumber = (value) => new Intl.NumberFormat("vi-VN").format(value || 0);
 
-    const getHeroById = (heroId) => heroes.find((hero) => hero.heroId === heroId) || null;
+    const getHeroById = (heroId) => {
+        if (heroId == null || heroId === "") {
+            return null;
+        }
+        const n = Number(heroId);
+        return heroes.find((hero) => Number(hero.heroId) === n) || null;
+    };
 
     const applyAvatar = (element, username, avatarUrl) => {
         if (!element) {
@@ -87,10 +101,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const renderSelectedHero = () => {
-        const hero = roomState?.currentPlayer?.selectedHero;
+        const apiHero = roomState?.currentPlayer?.selectedHero;
+        const merged = apiHero?.heroId != null ? getHeroById(apiHero.heroId) : null;
+        const hero = merged || apiHero;
 
         if (selectedHeroName) {
             selectedHeroName.textContent = hero?.name || "No hero selected";
+        }
+
+        if (heroSkillPanel && selectedHeroSkillName && selectedHeroSkillDesc && selectedHeroSkillCd) {
+            const hasHero = Boolean(hero?.name);
+            const hasSkillText = Boolean(hero?.skillName || hero?.skillDescription);
+            if (hasHero && hasSkillText) {
+                heroSkillPanel.hidden = false;
+                selectedHeroSkillName.textContent = hero.skillName || "—";
+                selectedHeroSkillDesc.textContent = hero.skillDescription || "Chưa có mô tả chi tiết.";
+                const cd = hero.skillCooldown;
+                selectedHeroSkillCd.textContent =
+                    cd != null && Number(cd) > 0
+                        ? `Hồi chiêu: ${cd} lượt`
+                        : "Hồi chiêu: theo luật nhân vật / thụ động";
+            } else {
+                heroSkillPanel.hidden = true;
+                selectedHeroSkillName.textContent = "";
+                selectedHeroSkillDesc.textContent = "";
+                selectedHeroSkillCd.textContent = "";
+            }
         }
 
         if (!selectedHeroImage || !heroEmptyState) {
@@ -153,6 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         const currentHeroId = roomState?.currentPlayer?.selectedHero?.heroId;
+        const currentHeroNum = currentHeroId != null ? Number(currentHeroId) : null;
         const useSvg = typeof window.HeroSystem !== "undefined";
 
         heroList.innerHTML = heroes
@@ -172,7 +209,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 return `
             <button
                 type="button"
-                class="hero-option ${currentHeroId === hero.heroId ? "active" : ""}"
+                class="hero-option ${currentHeroNum != null && currentHeroNum === Number(hero.heroId) ? "active" : ""}"
                 data-action="select-hero"
                 data-hero-id="${hero.heroId}"
             >
@@ -300,9 +337,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             playerTickets.textContent = currentPlayer.tickets ?? 0;
         }
         if (roomCode) {
-            const currentRoomId = roomState?.room?.roomId ?? "-";
             const currentRoomCode = roomState?.room?.roomCode ?? "-";
-            roomCode.textContent = `#${currentRoomId} | ${currentRoomCode}`;
+            roomCode.textContent = currentRoomCode;
         }
         if (roomVisibilityIndicator) {
             roomVisibilityIndicator.textContent = roomState?.room?.visibility === "PRIVATE" ? "🔒" : "🌐";
@@ -331,7 +367,50 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderSelectedHero();
         renderHeroList();
         renderPlayerSlots();
+        renderInviteFriends();
         setStatus(`Phong ${roomState?.room?.name || ""}`);
+    };
+
+    const renderInviteFriends = () => {
+        if (!inviteFriendsList) {
+            return;
+        }
+        const friends = roomState?.inviteFriends;
+        if (inviteFriendsHint) {
+            inviteFriendsHint.textContent = "";
+        }
+        if (!Array.isArray(friends) || friends.length === 0) {
+            inviteFriendsList.innerHTML = `<li class="invite-friends-empty">Chưa có bạn để mời. Thêm bạn ở trang <a href="/friends">Bạn bè</a> hoặc chia sẻ mã phòng.</li>`;
+            return;
+        }
+        inviteFriendsList.innerHTML = friends
+            .map((f) => {
+                const name = escapeHtml(f.username || "—");
+                const pid = f.userProfileId != null ? String(f.userProfileId) : "";
+                return `<li class="invite-friend-row">
+            <span class="invite-friend-name">${name}</span>
+            <button type="button" class="invite-friend-btn" data-action="invite-friend" data-profile-id="${escapeAttr(pid)}">Mời</button>
+          </li>`;
+            })
+            .join("");
+    };
+
+    const postRoomInvite = async (toUserProfileId) => {
+        const response = await fetch("/api/social/room-invite", {
+            method: "POST",
+            headers: getHeaders(true),
+            body: JSON.stringify({
+                roomId: Number(roomId),
+                toUserProfileId: Number(toUserProfileId)
+            })
+        });
+        if (handleUnauthorized(response)) {
+            return;
+        }
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(err || "Không gửi được lời mời.");
+        }
     };
 
     const loadHeroes = async () => {
@@ -353,6 +432,16 @@ document.addEventListener("DOMContentLoaded", async () => {
             console.error(error);
             heroes = [];
         }
+    };
+
+    const maybeRedirectToGameBoard = () => {
+        const gid = roomState?.room?.activeGameId;
+        const st = roomState?.room?.status;
+        if (gid != null && String(st).toUpperCase() === "IN_GAME") {
+            window.location.href = `/game-board?gameId=${gid}&roomId=${encodeURIComponent(roomId)}`;
+            return true;
+        }
+        return false;
     };
 
     const loadRoom = async () => {
@@ -378,6 +467,33 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             roomState = await response.json();
+
+            if (
+                !defaultHeroSynced &&
+                roomState?.currentPlayer &&
+                !roomState.currentPlayer.selectedHero
+            ) {
+                defaultHeroSynced = true;
+                try {
+                    const syncRes = await fetch(`/api/rooms/${roomId}/hero/apply-default`, {
+                        method: "POST",
+                        headers: getHeaders(true),
+                        body: "{}"
+                    });
+                    if (syncRes.ok) {
+                        const again = await fetch(`/api/rooms/${roomId}`, { headers: getHeaders() });
+                        if (again.ok) {
+                            roomState = await again.json();
+                        }
+                    }
+                } catch (e) {
+                    console.warn(e);
+                }
+            }
+
+            if (maybeRedirectToGameBoard()) {
+                return;
+            }
             renderRoom();
         } catch (error) {
             const netFail =
@@ -477,7 +593,21 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (action === "add-player") {
-                setStatus("Hay chia se ma phong de moi nguoi choi khac.");
+                setStatus("Dùng mã phòng, danh sách «Mời bạn bè» bên trên, hoặc Sảnh để thêm bạn.");
+            }
+
+            if (action === "invite-friend") {
+                const pid = target.getAttribute("data-profile-id");
+                if (!pid) {
+                    return;
+                }
+                await postRoomInvite(pid);
+                setStatus("Đã gửi lời mời qua tin nhắn (bạn xem trong Bạn bè).");
+            }
+
+            if (action === "friends-page") {
+                event.preventDefault();
+                window.location.href = "/friends";
             }
 
             if (action === "home") {
@@ -513,7 +643,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.warn("Hero SVG preload failed", e);
     }
     await Promise.all([loadHeroes(), loadRoom()]);
-    pollingHandle = window.setInterval(loadRoom, 4000);
+    pollingHandle = window.setInterval(loadRoom, 2000);
     window.addEventListener("beforeunload", () => {
         if (pollingHandle) {
             window.clearInterval(pollingHandle);
