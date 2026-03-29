@@ -59,7 +59,7 @@ public class AuthService {
         heroRepository
                 .findFirstByDefaultUnlockedTrueOrderByCharacterIdAsc()
                 .map(Hero::getCharacterId)
-                .ifPresent(profile::setDefaultCharacterId);
+                .ifPresent(profile::setCurrentHeroId);
 
         userProfileRepository.save(profile);
     }

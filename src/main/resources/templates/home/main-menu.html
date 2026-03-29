@@ -16,7 +16,7 @@
     <div class="backdrop-shape shape-c"></div>
 
     <header class="top-header">
-        <section class="player-banner" id="playerProfileBanner" role="link" tabindex="0" title="Hồ sơ cá nhân" aria-label="Mở hồ sơ cá nhân">
+        <section class="player-banner" id="playerProfileBanner" data-route="/profile" role="link" tabindex="0" title="Hồ sơ cá nhân" aria-label="Mở hồ sơ cá nhân" style="cursor: pointer;">
             <div class="player-avatar-frame">
                 <img class="player-avatar" id="playerAvatar" src="/images/avatar-default.png" alt="Avatar">
             </div>
@@ -32,10 +32,14 @@
         <div class="title-ribbon">MAIN MENU</div>
 
         <nav class="header-icons header-icons--compact" aria-label="Lối tắt">
-            <button type="button" class="circle-icon" data-route="/shop" aria-label="Cửa hàng">
+            <button type="button" class="circle-icon icon-friends" id="openFriendsBtn" data-route="/friends" aria-label="Bạn bè" title="Quản lý bạn bè" style="position: relative;">
+                <span>👥</span>
+                <span id="friendBadge" class="friend-badge" hidden aria-live="polite">0</span>
+            </button>
+            <button type="button" class="circle-icon icon-shop" data-route="/shop" aria-label="Cửa hàng">
                 <span>🛒</span>
             </button>
-            <button type="button" class="circle-icon close" data-route="/login" aria-label="Đăng xuất">
+            <button type="button" class="circle-icon close icon-close" data-route="/login" aria-label="Đăng xuất">
                 <span>✕</span>
             </button>
         </nav>

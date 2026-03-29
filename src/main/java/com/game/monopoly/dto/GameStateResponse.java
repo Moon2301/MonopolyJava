@@ -21,6 +21,8 @@ public class GameStateResponse {
     private Integer turnSecondsRemaining;
     /** Có phải lượt của tài khoản gửi X-Account-Id không (null nếu không gửi header). */
     private Boolean myTurn;
+    /** Thứ tự lượt (1..n) của người gửi X-Account-Id trong ván; null nếu không tham gia hoặc không gửi header. */
+    private Integer myPlayerTurnOrder;
     private Integer totalBoardCells;
     private CellInfoDto currentCell;
     private List<PlayerStateDto> players;
@@ -36,6 +38,23 @@ public class GameStateResponse {
     private List<String> gameLogLines;
     /** Khi không đủ tiền trả thuê — cần bán tài sản hoặc phá sản. */
     private DebtSituationDto debtSituation;
+    /** Khi ván kết thúc — xếp hạng theo thứ tự bị loại (hạng 1 = thắng). */
+    private List<FinalRankingEntryDto> finalRanking;
+    /**
+     * Đứng trên đất đối thủ, đủ tiền mua lại 130% — chưa trả thuê; cần chọn trả thuê hoặc mua lại.
+     */
+    private OpponentLandPendingDto opponentLandPending;
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class OpponentLandPendingDto {
+        private Long rentAmount;
+        private Long buybackPrice;
+        /** Phần trăm giá niêm yết áp dụng cho mua lại (vd 130 hoặc 100). */
+        private Integer buybackPercent;
+        private String cellName;
+    }
 
     @Getter
     @Builder
@@ -127,10 +146,33 @@ public class GameStateResponse {
     @Getter
     @Builder
     @AllArgsConstructor
+    public static class FinalRankingEntryDto {
+        /** 1 = thắng, 2 = á quân, … */
+        private Integer rank;
+        private Integer turnOrder;
+        private String displayName;
+        /** Tên hero trong trận (nếu có). */
+        private String heroName;
+        /** Số dư trong ván (khi không có {@link #coinReward}). */
+        private Long balance;
+        /**
+         * Xu cộng vào tài khoản khi hết ván (10–200); ưu tiên hiển thị thay {@link #balance}.
+         */
+        private Long coinReward;
+        private Boolean isBot;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
     public static class PlayerSkillDto {
         private Integer skillId;
         private String name;
         private String description;
+        /** EffectType từ DB — client dùng để biết skill cần chọn ô. */
+        private String effectType;
+        /** Cần gửi targetCellId khi kích hoạt. */
+        private Boolean requiresTarget;
         /** PASSIVE hoặc ACTIVE */
         private String triggerType;
         private Integer cooldownTurns;
