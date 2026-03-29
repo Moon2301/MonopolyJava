@@ -52,7 +52,7 @@ public class HeroPublicController {
                 .heroId(hero.getCharacterId())
                 .name(hero.getName())
                 .rarity(hero.getRarity())
-                /* PNG không bắt buộc — UI dùng SVG HeroSystem, tránh 404 URL Unicode */
+                /* PNG is not mandatory — UI uses SVG HeroSystem, avoid 404 URL Unicode */
                 .imageUrl(null)
                 .price(hero.getPrice())
                 .appearanceDescription(hero.getAppearanceDescription())

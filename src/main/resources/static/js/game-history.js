@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const accountId = localStorage.getItem("accountId");
+    const accountId = sessionStorage.getItem("accountId");
     const redirectToLogin = () => {
         window.location.href = "/login";
     };

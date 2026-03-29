@@ -112,8 +112,8 @@
 
              if (res.ok && data.accountId) {
 
-                 localStorage.setItem("accountId", String(data.accountId));
-                 localStorage.setItem("userRole", data.role);
+                 sessionStorage.setItem("accountId", String(data.accountId));
+                 sessionStorage.setItem("userRole", data.role);
 
                  if (data.role === "ADMIN") {
                      window.location.href = "/admin";

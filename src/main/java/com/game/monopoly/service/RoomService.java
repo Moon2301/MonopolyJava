@@ -1,7 +1,6 @@
 package com.game.monopoly.service;
 
 import com.game.monopoly.dto.*;
-import com.game.monopoly.MonopolyGameRules;
 import com.game.monopoly.model.enums.GameStatus;
 import com.game.monopoly.model.enums.RoomMode;
 import com.game.monopoly.model.enums.RoomStatus;
@@ -20,6 +19,9 @@ import com.game.monopoly.repository.HeroRepository;
 import com.game.monopoly.repository.RoomPlayerRepository;
 import com.game.monopoly.repository.RoomRepository;
 import com.game.monopoly.repository.UserProfileRepository;
+import com.game.monopoly.repository.RoomInvitationRepository;
+import com.game.monopoly.model.metaData.RoomInvitation;
+import com.game.monopoly.dto.RoomInvitationResponse;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -49,6 +51,7 @@ public class RoomService {
     private final GamePlayerRepository gamePlayerRepository;
     private final PasswordEncoder passwordEncoder;
     private final HeroOwnershipService heroOwnershipService;
+    private final RoomInvitationRepository roomInvitationRepository;
 
     @Transactional(readOnly = true)
     public RoomListResponse getRooms(RoomStatus status, RoomVisibility visibility, int page, int size) {
@@ -198,6 +201,16 @@ public class RoomService {
             currentAvatarUrl = null;
         }
 
+        Long gameId = null;
+        if (room.getStatus() == RoomStatus.IN_GAME || room.getStatus() == RoomStatus.STARTING) {
+            List<Game> games = gameRepository.findAll();
+            gameId = games.stream()
+                    .filter(g -> Objects.equals(g.getCreatedBy(), room.getHostPlayerId()))
+                    .map(Game::getGameId)
+                    .max(Long::compareTo)
+                    .orElse(null);
+        }
+
         return RoomDetailResponse.builder()
                 .room(RoomDetailResponse.RoomDto.builder()
                         .roomId(room.getRoomId())
@@ -208,6 +221,7 @@ public class RoomService {
                         .maxPlayers(room.getMaxPlayers())
                         .status(room.getStatus())
                         .hostPlayerId(room.getHostPlayerId())
+                        .gameId(gameId)
                         .build())
                 .currentPlayer(RoomDetailResponse.CurrentPlayerDto.builder()
                         .playerId(account.getAccountId())
@@ -291,6 +305,11 @@ public class RoomService {
                 .orElseThrow(() -> new RuntimeException("Account not found"));
         RoomPlayer roomPlayer = getRoomPlayer(roomId, account.getAccountId());
         boolean ready = Boolean.TRUE.equals(request.getReady());
+
+        if (ready && roomPlayer.getSelectedHeroId() == null) {
+            throw new RuntimeException("Vui lòng chọn nhân vật trước khi Sẵn sàng");
+        }
+
         roomPlayer.setIsReady(ready);
         roomPlayerRepository.save(roomPlayer);
 
@@ -314,6 +333,9 @@ public class RoomService {
         }
         if (roomPlayers.stream().anyMatch(player -> !Boolean.TRUE.equals(player.getIsReady()))) {
             throw new RuntimeException("All players must be ready");
+        }
+        if (roomPlayers.stream().anyMatch(player -> player.getSelectedHeroId() == null)) {
+            throw new RuntimeException("Tất cả người chơi đều phải chọn nhân vật trước khi Bắt đầu");
         }
 
         room.setStatus(RoomStatus.STARTING);
@@ -346,7 +368,7 @@ public class RoomService {
                     .userProfileId(profile.getUserProfileId())
                     .characterId(player.getSelectedHeroId())
                     .turnOrder(player.getSlotIndex())
-                    .balance(MonopolyGameRules.IN_GAME_STARTING_BALANCE)
+                    .balance(10000L)
                     .position(0)
                     .isBankrupt(false)
                     .isBot(false)
@@ -392,6 +414,82 @@ public class RoomService {
         return MessageResponse.builder()
                 .message("Left room")
                 .build();
+    }
+
+    @Transactional
+    public MessageResponse invitePlayer(Long roomId, RoomInviteRequest request, Long accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+        Room room = getRoom(roomId);
+        RoomPlayer roomPlayer = getRoomPlayer(roomId, account.getAccountId());
+        
+        if (request.getUsername() == null || request.getUsername().isBlank()) {
+            throw new RuntimeException("Vui lòng nhập tên người dùng hợp lệ");
+        }
+        String invitee = request.getUsername().trim();
+        UserProfile inviteeProfile = userProfileRepository.findByUsername(invitee)
+                .orElseThrow(() -> new RuntimeException("Tên người dùng không tồn tại"));
+        
+        Long inviteeId = inviteeProfile.getAccount().getAccountId();
+        if (Objects.equals(inviteeId, accountId)) {
+            throw new RuntimeException("Không thể tự mời bản thân");
+        }
+
+        Optional<RoomInvitation> existing = roomInvitationRepository.findByRoomIdAndInviteeIdAndStatus(roomId, inviteeId, "PENDING");
+        if (existing.isPresent()) {
+            RoomInvitation inv = existing.get();
+            if (inv.getCreatedAt().plusSeconds(5).isAfter(java.time.LocalDateTime.now())) {
+                throw new RuntimeException("Đã gửi lời mời trước đó rồi. Vui lòng đợi 5s để gửi lại.");
+            } else {
+                inv.setCreatedAt(java.time.LocalDateTime.now());
+                roomInvitationRepository.save(inv);
+                return MessageResponse.builder()
+                        .message("Đã gửi LẠI lời mời tham gia phòng đến " + invitee)
+                        .build();
+            }
+        }
+
+        roomInvitationRepository.save(RoomInvitation.builder()
+                .roomId(roomId)
+                .inviterId(accountId)
+                .inviteeId(inviteeId)
+                .status("PENDING")
+                .createdAt(java.time.LocalDateTime.now())
+                .build());
+
+        return MessageResponse.builder()
+                .message("Đã gửi lời mời tham gia phòng đến " + invitee)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RoomInvitationResponse> getPendingInvitations(Long accountId) {
+        List<RoomInvitation> pending = roomInvitationRepository.findByInviteeIdAndStatus(accountId, "PENDING");
+        return pending.stream().map(inv -> {
+            Room room = roomRepository.findById(inv.getRoomId()).orElse(null);
+            UserProfile inviter = userProfileRepository.findByAccount_AccountId(inv.getInviterId()).orElse(null);
+            
+            if (room == null || inviter == null || !"WAITING".equals(room.getStatus().name())) {
+                return null;
+            }
+
+            return RoomInvitationResponse.builder()
+                    .id(inv.getId())
+                    .roomId(room.getRoomId())
+                    .roomCode(room.getRoomCode())
+                    .inviterName(inviter.getUsername())
+                    .createdAt(inv.getCreatedAt())
+                    .build();
+        }).filter(Objects::nonNull).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public MessageResponse deleteInvitation(Long invitationId, Long accountId) {
+        RoomInvitation inv = roomInvitationRepository.findById(invitationId).orElse(null);
+        if (inv != null && Objects.equals(inv.getInviteeId(), accountId)) {
+            roomInvitationRepository.delete(inv);
+        }
+        return MessageResponse.builder().message("Đã xóa lời mời").build();
     }
 
     private Map<Long, String> loadHostNames(List<Room> rooms) {

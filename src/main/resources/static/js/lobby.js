@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const accountId = localStorage.getItem("accountId");
+    const accountId = sessionStorage.getItem("accountId");
     const roomList = document.getElementById("roomList");
     const lobbyStatus = document.getElementById("lobbyStatus");
     const createRoomButton = document.getElementById("createRoomButton");

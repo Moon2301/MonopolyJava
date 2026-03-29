@@ -8,9 +8,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/profile.css">
+    <script>
+        if (!sessionStorage.getItem("accountId")) {
+            window.location.replace("/login");
+        }
+    </script>
 </head>
 <body>
 <main class="profile-page">
+    <button type="button" id="closeProfileBtn" aria-label="Đóng" style="position:absolute; top: 15px; right: 20px; font-size: 24px; color: white; background: transparent; border: none; cursor: pointer; z-index: 10;">✕</button>
     <section class="panel hero-panel">
         <div class="profile-head">
             <div class="avatar-wrap">
@@ -23,7 +29,10 @@
             </div>
             <div>
                 <p class="section-tag">Hồ sơ người dùng</p>
-                <h1 id="profileUsername">Tên người chơi</h1>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <h1 id="profileUsername">Tên người chơi</h1>
+                    <button type="button" id="editUsernameBtn" aria-label="Sửa tên" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--gold-color, #ffeb3b);">✎</button>
+                </div>
                 <div class="badges-row">
                     <span id="profileCoins" class="coin-badge">0 Xu</span>
                     <span id="profileTickets" class="coin-badge tickets-badge">0 Vé</span>
@@ -53,6 +62,19 @@
             <div class="stat-card"><strong id="statRankTier">-</strong><span>Hạng</span></div>
         </div>
     </section>
+    <!-- Edit Username Modal -->
+    <div id="editNameModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 100; justify-content: center; align-items: center;">
+        <div class="modal-content" style="background: var(--panel-bg, #2a2a3e); padding: 24px; border-radius: 16px; border: 1px solid var(--border-color, #3a3a4e); width: 90%; max-width: 400px; text-align: center; color: white;">
+            <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 20px;">Đổi tên người dùng</h2>
+            <input type="text" id="newNameInput" placeholder="Nhập tên mới (< 20 ký tự)" maxlength="20" style="width: 100%; padding: 12px; margin-bottom: 24px; border-radius: 8px; border: 1px solid var(--border-color, #3a3a4e); background: #1a1a2e; color: white; font-size: 16px; box-sizing: border-box;">
+            <p id="editNameError" aria-live="polite" style="color: #ff5252; font-size: 14px; margin-top: -16px; margin-bottom: 16px; display: none;"></p>
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" id="cancelEditNameBtn" style="padding: 10px 20px; border-radius: 8px; border: none; background: #3a3a4e; color: white; cursor: pointer; font-weight: 600;">Hủy</button>
+                <button type="button" id="confirmEditNameBtn" style="padding: 10px 20px; border-radius: 8px; border: none; background: var(--gold-color, #ffeb3b); color: #1a1a2e; cursor: pointer; font-weight: 700;">Lưu</button>
+            </div>
+        </div>
+    </div>
+    
 </main>
 <script src="/js/profile.js"></script>
 </body>
