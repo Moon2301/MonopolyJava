@@ -38,6 +38,7 @@ public class UserMeService {
     private final GamePlayerRepository gamePlayerRepository;
     private final GameRepository gameRepository;
     private final HeroRepository heroRepository;
+    private final HeroOwnershipService heroOwnershipService;
 
     public UserMeSummaryResponse getSummary(Long accountId) {
         Account account = accountRepository.findById(accountId)
@@ -96,6 +97,7 @@ public class UserMeService {
                 .matches(matches)
                 .winRate(winRate)
                 .totalWonAssets(totalWonAssets)
+                .currentHeroId(profile.getCurrentHeroId())
                 .equippedCharacterId(equippedCharacterId)
                 .equippedCharacterName(equippedCharacterName)
                 .equippedCharacterImageUrl(equippedCharacterImageUrl)
@@ -126,11 +128,38 @@ public class UserMeService {
     }
 
     /**
-     * Nhân vật hiển thị hồ sơ: {@link UserProfile#getDefaultCharacterId()}, nếu null hoặc không còn tồn tại
+     * Đặt hero mặc định / hiện tại (phải thuộc sở hữu).
+     */
+    @Transactional
+    public UserMeSummaryResponse setCurrentHero(Long accountId, Integer heroId) {
+        if (accountId == null) {
+            throw new RuntimeException("Cần đăng nhập");
+        }
+        if (heroId == null) {
+            throw new RuntimeException("Cần heroId");
+        }
+        Account account = accountRepository.findById(accountId).orElseThrow(() -> new RuntimeException("Account not found"));
+        UserProfile profile =
+                userProfileRepository
+                        .findByAccount_AccountId(account.getAccountId())
+                        .orElseThrow(() -> new RuntimeException("UserProfile not found"));
+        if (!heroOwnershipService.isHeroOwned(accountId, heroId)) {
+            throw new RuntimeException("Bạn chưa sở hữu nhân vật này");
+        }
+        if (heroRepository.findById(heroId).isEmpty()) {
+            throw new RuntimeException("Nhân vật không tồn tại");
+        }
+        profile.setCurrentHeroId(heroId);
+        userProfileRepository.save(profile);
+        return getSummary(accountId);
+    }
+
+    /**
+     * Nhân vật hiển thị hồ sơ: {@link UserProfile#getCurrentHeroId()}, nếu null hoặc không còn tồn tại
      * thì hero mở mặc định đầu tiên, sau đó hero tồn tại sớm nhất theo {@code character_id}.
      */
     private Hero resolveDisplayHero(UserProfile profile) {
-        Integer id = profile.getDefaultCharacterId();
+        Integer id = profile.getCurrentHeroId();
         if (id != null) {
             Optional<Hero> byId = heroRepository.findById(id);
             if (byId.isPresent()) {

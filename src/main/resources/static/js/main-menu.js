@@ -11,6 +11,7 @@ window.onload = () => {
     const joinRoomButton = document.getElementById("joinRoomButton");
     const roomActionStatus = document.getElementById("roomActionStatus");
     const routeTargets = document.querySelectorAll("[data-route]");
+    const friendBadge = document.getElementById("friendBadge");
 
     const setRoomStatus = (message, isError = false) => {
         if (!roomActionStatus) {
@@ -82,6 +83,29 @@ window.onload = () => {
             bindHomeSummary(data);
         } catch (error) {
             console.error(error);
+        }
+    };
+
+    /** Số lời mời kết bạn chờ chấp nhận (badge nút bạn bè). */
+    const loadFriendBadge = async () => {
+        if (!friendBadge || !accountId) {
+            return;
+        }
+        try {
+            const response = await fetch("/api/social/friends", { headers: getHeaders() });
+            if (!response.ok) {
+                return;
+            }
+            const list = await response.json();
+            const pending = Array.isArray(list) ? list.filter((f) => f.canAccept === true).length : 0;
+            if (pending > 0) {
+                friendBadge.hidden = false;
+                friendBadge.textContent = pending > 9 ? "9+" : String(pending);
+            } else {
+                friendBadge.hidden = true;
+            }
+        } catch (e) {
+            console.warn(e);
         }
     };
 
@@ -381,4 +405,5 @@ window.onload = () => {
     });
 
     loadHomeSummary();
+    loadFriendBadge();
 };

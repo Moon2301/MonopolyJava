@@ -51,12 +51,20 @@
     </section>
 
     <section class="equipped-character-card">
-        <p class="section-tag">Nhân vật đang sử dụng</p>
-        <p class="equipped-character-sub">Nhân vật mặc định khi vào bàn chơi</p>
+        <p class="section-tag">Nhân vật hiển thị hồ sơ</p>
+        <p class="equipped-character-sub">Suy ra từ hero mặc định bên dưới (hoặc hero mở sẵn)</p>
         <div class="equipped-character-content">
             <img id="equippedCharacterImage" class="equipped-character-image" alt="Hình nhân vật" hidden>
             <div id="equippedCharacterName" class="equipped-character-name">-</div>
         </div>
+    </section>
+
+    <section class="equipped-character-card current-hero-card">
+        <p class="section-tag">Hero mặc định (current hero)</p>
+        <p class="equipped-character-sub">Bắt buộc có hero để vào trận — dùng tự động trong phòng nếu chưa chọn tay</p>
+        <label class="current-hero-label" for="currentHeroSelect">Chọn hero</label>
+        <select id="currentHeroSelect" class="current-hero-select"></select>
+        <p id="currentHeroStatus" class="avatar-status" aria-live="polite"></p>
     </section>
 
     <div id="renameModal" class="rename-modal" hidden aria-hidden="true" role="dialog" aria-labelledby="renameModalTitle">

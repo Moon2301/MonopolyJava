@@ -1,6 +1,7 @@
 package com.game.monopoly.controller;
 
 import com.game.monopoly.dto.ChangeDisplayNameRequest;
+import com.game.monopoly.dto.SetCurrentHeroRequest;
 import com.game.monopoly.dto.UserMeSummaryResponse;
 import com.game.monopoly.dto.UserMeAvatarResponse;
 import com.game.monopoly.service.UserMeService;
@@ -47,6 +48,13 @@ public class UserMeController {
         return UserMeAvatarResponse.builder().avatarUrl(avatarUrl).build();
     }
 
+    @PostMapping("/current-hero")
+    public UserMeSummaryResponse setCurrentHero(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @RequestBody(required = false) SetCurrentHeroRequest body
+    ) {
+        Integer heroId = body != null ? body.getHeroId() : null;
+        return userMeService.setCurrentHero(accountId, heroId);
     @PutMapping("/username")
     public Map<String, Object> updateUsername(
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId,

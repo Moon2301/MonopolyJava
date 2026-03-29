@@ -35,11 +35,15 @@ public class PlayerSkillViewService {
                     s.getTriggerType() != null
                             && s.getTriggerType().toUpperCase(Locale.ROOT).contains("PASSIVE");
             boolean ready = passive || cdRem <= 0;
+            String et = s.getEffectType();
+            boolean needsTarget = requiresTargetSkill(et);
             out.add(
                     GameStateResponse.PlayerSkillDto.builder()
                             .skillId(s.getSkillId())
                             .name(s.getName())
                             .description(s.getEffectFormula())
+                            .effectType(et)
+                            .requiresTarget(needsTarget)
                             .triggerType(s.getTriggerType())
                             .cooldownTurns(s.getCooldown())
                             .cooldownRemaining(passive ? 0 : cdRem)
@@ -48,5 +52,13 @@ public class PlayerSkillViewService {
                             .build());
         }
         return out;
+    }
+
+    private static boolean requiresTargetSkill(String effectType) {
+        if (effectType == null) {
+            return false;
+        }
+        String u = effectType.toUpperCase(Locale.ROOT);
+        return "RESET_PROPERTY_OWNER".equals(u) || "MARK_AND_BUYBACK".equals(u);
     }
 }

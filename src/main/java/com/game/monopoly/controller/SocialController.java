@@ -29,6 +29,14 @@ public class SocialController {
         return socialService.sendFriendRequest(accountId, request.getUsername());
     }
 
+    @PostMapping("/room-invite")
+    public MessageItemResponse sendRoomInvite(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @RequestBody RoomInviteRequest request
+    ) {
+        return socialService.sendRoomInvite(accountId, request.getToUserProfileId(), request.getRoomId());
+    }
+
     @PostMapping("/friends/{friendId}/accept")
     public FriendListItemResponse acceptFriendRequest(
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId,

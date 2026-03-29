@@ -11,6 +11,29 @@
     <link rel="stylesheet" href="/character/character.css">
 </head>
 <body>
+<button type="button" id="surrenderButton" class="surrender-top-btn" hidden aria-label="Đầu hàng">Đầu hàng</button>
+<div id="gameEndRankingOverlay" class="game-end-ranking-overlay" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="gameEndRankingTitle">
+    <div class="game-end-ranking-panel glass-panel">
+        <h2 id="gameEndRankingTitle" class="game-end-ranking-title">Kết thúc ván</h2>
+        <p class="game-end-ranking-sub">Xếp hạng theo thứ tự bị loại · Top 1 to nhất</p>
+        <div id="gameEndRankingList" class="game-end-ranking-podium" role="list"></div>
+        <div class="game-end-ranking-actions">
+            <button type="button" id="gameEndRankingPlayAgain" class="action-button primary game-end-ranking-btn-play">Chơi lại</button>
+            <button type="button" id="gameEndRankingExitHome" class="action-button game-end-ranking-btn-exit">Thoát</button>
+        </div>
+    </div>
+</div>
+<div id="skillTargetBanner" class="skill-target-banner glass-panel" hidden role="status" aria-live="polite">Chọn một ô trên bàn làm mục tiêu kỹ năng (bấm ô đất).</div>
+<div id="surrenderConfirmModal" class="surrender-confirm-overlay" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="surrenderConfirmTitle">
+    <div class="surrender-confirm-panel glass-panel">
+        <h2 id="surrenderConfirmTitle" class="surrender-confirm-title">Đầu hàng?</h2>
+        <p class="surrender-confirm-text">Bạn sẽ bị loại khỏi ván. Ô đang sở hữu trả về thị trường (không còn chủ). Nếu đang nợ tiền thuê, tài sản và tiền mặt sẽ chuyển cho chủ nợ như khi phá sản.</p>
+        <div class="surrender-confirm-actions">
+            <button type="button" id="surrenderCancelButton" class="action-button">Hủy</button>
+            <button type="button" id="surrenderConfirmButton" class="action-button surrender-confirm-btn--danger">Đầu hàng</button>
+        </div>
+    </div>
+</div>
 <div id="yourTurnToast" class="your-turn-toast" role="status" aria-live="polite" aria-hidden="true" hidden>
     <div class="your-turn-toast-inner glass-panel">
         <span class="your-turn-toast-icon" aria-hidden="true">🎲</span>
@@ -119,6 +142,8 @@
                 <button id="endTurnButton" type="button" class="action-button">Kết thúc lượt</button>
                 <button id="buyPropertyButton" type="button" class="action-button">Mua đất</button>
                 <button id="upgradePropertyButton" type="button" class="action-button">Nâng cấp</button>
+                <button id="payOppRentButton" type="button" class="action-button" hidden>Trả tiền thuê</button>
+                <button id="buybackOppButton" type="button" class="action-button primary" hidden>Mua lại đất (130%)</button>
             </div>
             <p id="gameActionStatus" class="turn-label" style="margin:8px 0 0;">&nbsp;</p>
         </aside>
