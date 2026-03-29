@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monopoly - Chơi Với Máy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/play-vs-ai.css">
+</head>
+<body>
+<main class="ai-page">
+    <section class="ai-card">
+        <p class="section-tag">Chế độ AI</p>
+        <h1>Chơi Với Máy</h1>
+        <p class="ai-desc">Chọn độ khó và số bot (1–3). Bạn + bot cùng một bàn.</p>
+
+        <div class="bot-count-row">
+            <label for="botCountSelect">Số bot</label>
+            <select id="botCountSelect" class="bot-count-select" aria-label="Số bot">
+                <option value="1" selected>1 bot</option>
+                <option value="2">2 bot</option>
+                <option value="3">3 bot</option>
+            </select>
+        </div>
+
+        <div class="difficulty-grid">
+            <button type="button" class="difficulty-button active" data-difficulty="easy">
+                <strong>Dễ</strong>
+                <span>AI phản ứng chậm, phù hợp luyện tập.</span>
+            </button>
+            <button type="button" class="difficulty-button" data-difficulty="hard">
+                <strong>Khó</strong>
+                <span>AI ưu tiên nước đi tối ưu, chơi quyết liệt.</span>
+            </button>
+        </div>
+
+        <div class="action-row">
+            <button type="button" id="backButton" class="ghost">Quay về</button>
+            <button type="button" id="startAiGameButton" class="accent">Bắt đầu trận</button>
+        </div>
+        <p id="aiStatus" class="status-line"></p>
+    </section>
+</main>
+<script src="/js/play-vs-ai.js"></script>
+</body>
+</html>

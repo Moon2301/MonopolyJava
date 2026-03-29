@@ -1,0 +1,62 @@
+package com.game.monopoly.controller;
+
+import com.game.monopoly.dto.*;
+import com.game.monopoly.service.GamePlayService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/gameplay")
+@RequiredArgsConstructor
+public class GamePlayController {
+
+    private final GamePlayService gamePlayService;
+
+    @PostMapping("/bot/start")
+    public StartBotGameResponse startBotGame(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @RequestBody(required = false) StartBotGameRequest request
+    ) {
+        return gamePlayService.startBotGame(accountId, request);
+    }
+
+    @GetMapping("/{gameId}/state")
+    public GameStateResponse getState(
+            @PathVariable Long gameId,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return gamePlayService.getState(gameId, accountId);
+    }
+
+    @PostMapping("/{gameId}/roll")
+    public GameActionResponse rollDice(
+            @PathVariable Long gameId,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return gamePlayService.rollDice(gameId, accountId);
+    }
+
+    @PostMapping("/{gameId}/buy")
+    public GameActionResponse buyCurrentCell(
+            @PathVariable Long gameId,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return gamePlayService.buyCurrentCell(gameId, accountId);
+    }
+
+    @PostMapping("/{gameId}/upgrade")
+    public GameActionResponse upgradeCurrentCell(
+            @PathVariable Long gameId,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return gamePlayService.upgradeCurrentCell(gameId, accountId);
+    }
+
+    @PostMapping("/{gameId}/end-turn")
+    public GameActionResponse endTurn(
+            @PathVariable Long gameId,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return gamePlayService.endTurn(gameId, accountId);
+    }
+}
