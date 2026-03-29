@@ -128,7 +128,7 @@
     <!-- Auth Protection Script -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const accountId = localStorage.getItem('accountId');
+            const accountId = sessionStorage.getItem('accountId');
             if (!accountId) {
                 window.location.replace('/login');
                 return;
@@ -137,8 +137,8 @@
             document.getElementById('userEmailDisplay').textContent = 'Đại Gia';
 
             document.getElementById('logoutBtn').addEventListener('click', () => {
-                localStorage.removeItem('accountId');
-                localStorage.removeItem('userRole');
+                sessionStorage.removeItem('accountId');
+                sessionStorage.removeItem('userRole');
                 window.location.href = '/login';
             });
         });

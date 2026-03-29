@@ -106,6 +106,30 @@ public class RoomController {
         return roomService.startGame(roomId, accountId);
     }
 
+    @PostMapping("/{roomId}/invite")
+    public MessageResponse invitePlayer(
+            @PathVariable Long roomId,
+            @RequestBody RoomInviteRequest request,
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return roomService.invitePlayer(roomId, request, accountId);
+    }
+
+    @GetMapping("/invitations/pending")
+    public java.util.List<com.game.monopoly.dto.RoomInvitationResponse> getPendingInvitations(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId) {
+        if (accountId == null) throw new RuntimeException("Chua dang nhap");
+        return roomService.getPendingInvitations(accountId);
+    }
+
+    @DeleteMapping("/invitations/{id}")
+    public MessageResponse deleteInvitation(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @PathVariable Long id) {
+        if (accountId == null) throw new RuntimeException("Chua dang nhap");
+        return roomService.deleteInvitation(id, accountId);
+    }
+
     @PostMapping("/{roomId}/leave")
     public MessageResponse leaveRoom(
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId,

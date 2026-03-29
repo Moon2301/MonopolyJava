@@ -22,7 +22,8 @@ public class HeroShopService {
     private final HeroOwnershipService heroOwnershipService;
 
     public ShopStateResponse getShopState(Long accountId) {
-        UserProfile profile = heroOwnershipService.getProfileByAccountId(accountId);
+        UserProfile profile = userProfileRepository.findByAccount_AccountId(accountId)
+                .orElseThrow(() -> new RuntimeException("UserProfile not found"));
         List<Integer> ownedHeroIds = heroOwnershipService.getOwnedHeroIds(accountId).stream().toList();
 
         return ShopStateResponse.builder()
@@ -37,7 +38,8 @@ public class HeroShopService {
             throw new RuntimeException("heroId is required");
         }
 
-        UserProfile profile = heroOwnershipService.getProfileByAccountId(accountId);
+        UserProfile profile = userProfileRepository.findByAccount_AccountId(accountId)
+                .orElseThrow(() -> new RuntimeException("UserProfile not found"));
         Hero hero = heroRepository.findById(heroId)
                 .orElseThrow(() -> new RuntimeException("Hero not found"));
 

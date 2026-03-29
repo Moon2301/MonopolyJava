@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const coinsNode = document.getElementById("shop-coins");
     const backButton = document.getElementById("shopBackButton");
     const gradients = ["hero-a", "hero-b", "hero-c", "hero-d", "hero-e", "hero-f", "hero-g"];
-    const accountId = localStorage.getItem("accountId");
+    const accountId = sessionStorage.getItem("accountId");
     const ownedHeroIds = new Set();
     let currentCoins = 0;
 
