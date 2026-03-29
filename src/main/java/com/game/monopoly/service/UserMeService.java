@@ -38,6 +38,7 @@ public class UserMeService {
     private final GamePlayerRepository gamePlayerRepository;
     private final GameRepository gameRepository;
     private final HeroRepository heroRepository;
+    private final HeroOwnershipService heroOwnershipService;
 
     public UserMeSummaryResponse getSummary(Long accountId) {
         Account account = accountRepository.findById(accountId)
@@ -234,6 +235,32 @@ public class UserMeService {
         userProfileRepository.save(profile);
 
         return avatarUrl;
+    }
+
+    @Transactional
+    public void equipHero(Long accountId, Integer heroId) {
+        if (heroId == null) {
+            throw new RuntimeException("Hero ID is required");
+        }
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+        UserProfile profile = userProfileRepository.findByAccount_AccountId(account.getAccountId())
+                .orElseThrow(() -> new RuntimeException("UserProfile not found"));
+
+        // Kiểm tra xem user có sở hữu hero này không
+        // Giả sử có heroOwnershipService hoặc kiểm tra trực tiếp qua repository
+        // Do UserMeService không inject HeroOwnershipService, tôi sẽ dùng HeroRepository và logic mặc định hoặc kiểm tra đơn giản
+        
+        Hero hero = heroRepository.findById(heroId)
+                .orElseThrow(() -> new RuntimeException("Hero không tồn tại"));
+
+        if (!heroOwnershipService.isHeroOwned(accountId, hero.getCharacterId())) {
+            throw new RuntimeException("Bạn không sở hữu nhân vật này");
+        }
+        
+        profile.setDefaultCharacterId(hero.getCharacterId());
+        userProfileRepository.save(profile);
     }
 
     private String guessExtension(String contentType, String originalFilename) {

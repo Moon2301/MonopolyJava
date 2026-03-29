@@ -266,6 +266,9 @@ body {
 .icon-close {
     background: linear-gradient(135deg, #f87171, #dc2626);
 }
+.icon-topup {
+    background: linear-gradient(135deg, #a78bfa, #7c3aed); /* Purple gradient */
+}
 
 .menu-layout {
     position: relative;

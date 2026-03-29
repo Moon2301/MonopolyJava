@@ -66,6 +66,89 @@ document.addEventListener("DOMContentLoaded", () => {
         return false;
     };
 
+    const ownedHeroGrid = document.getElementById("ownedHeroGrid");
+    const collectionCount = document.getElementById("collectionCount");
+
+    const loadOwnedHeroes = async (equippedId) => {
+        try {
+            const response = await fetch("/api/heroes/owned", { headers: getHeaders() });
+            if (handleUnauthorized(response)) return;
+            if (!response.ok) throw new Error("Không thể tải bộ sưu tập.");
+
+            const heroes = await response.json();
+            if (collectionCount) {
+                collectionCount.textContent = `${heroes.length} nhân vật`;
+            }
+
+            renderOwnedHeroes(heroes, equippedId);
+        } catch (error) {
+            console.error(error);
+            if (ownedHeroGrid) {
+                ownedHeroGrid.innerHTML = `<p class="loading-text" style="color: #ffb4b4;">${error.message}</p>`;
+            }
+        }
+    };
+
+    const renderOwnedHeroes = (heroes, equippedId) => {
+        if (!ownedHeroGrid) return;
+        if (heroes.length === 0) {
+            ownedHeroGrid.innerHTML = `<p class="loading-text">Bạn chưa sở hữu nhân vật nào.</p>`;
+            return;
+        }
+
+        ownedHeroGrid.innerHTML = heroes.map((hero, idx) => {
+            const isEquipped = hero.heroId === equippedId;
+            const heroSvg = window.HeroSystem ? window.HeroSystem.getSVG(hero.name, `coll-${hero.heroId}`) : '';
+            return `
+                <div class="owned-hero-card ${isEquipped ? 'equipped' : ''}">
+                    <div class="owned-hero-visual">
+                        <div style="transform: scale(1.2); transform-origin: center bottom;">
+                            ${heroSvg}
+                        </div>
+                    </div>
+                    <span class="owned-hero-name">${hero.name}</span>
+                    <button type="button" 
+                            class="equip-btn ${isEquipped ? 'equipped' : ''}" 
+                            data-hero-id="${hero.heroId}"
+                            ${isEquipped ? 'disabled' : ''}>
+                        ${isEquipped ? 'Đang dùng' : 'Trang bị'}
+                    </button>
+                </div>
+            `;
+        }).join("");
+
+        if (window.HeroSystem) {
+            heroes.forEach((h, i) => {
+                window.HeroSystem.startIdle(`coll-${h.heroId}`, i * 0.12);
+            });
+        }
+
+        ownedHeroGrid.querySelectorAll(".equip-btn:not(.equipped)").forEach(btn => {
+            btn.addEventListener("click", () => equipHero(btn.dataset.heroId, btn));
+        });
+    };
+
+    const equipHero = async (heroId, button) => {
+        try {
+            button.disabled = true;
+            button.textContent = "...";
+            const response = await fetch("/api/user/me/equip-hero", {
+                method: "POST",
+                headers: getHeaders(true),
+                body: JSON.stringify({ heroId: parseInt(heroId) })
+            });
+
+            if (handleUnauthorized(response)) return;
+            if (!response.ok) throw new Error("Trang bị thất bại.");
+
+            await loadSummary();
+        } catch (error) {
+            alert(error.message);
+            button.disabled = false;
+            button.textContent = "Trang bị";
+        }
+    };
+
     const loadSummary = async () => {
         try {
             const response = await fetch("/api/user/me/summary", { headers: getHeaders() });
@@ -114,16 +197,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 equippedCharacterName.textContent = data.equippedCharacterName || "-";
             }
             if (equippedCharacterImage) {
-                if (data.equippedCharacterImageUrl) {
-                    equippedCharacterImage.style.display = "block";
-                    equippedCharacterImage.src = data.equippedCharacterImageUrl;
-                    // Clear alt text fallback; keep name in text below.
-                    equippedCharacterImage.alt = data.equippedCharacterName || "Hình nhân vật";
-                } else {
-                    equippedCharacterImage.style.display = "none";
-                    equippedCharacterImage.src = "";
-                }
+                equippedCharacterImage.style.display = "none";
             }
+            
+            const equippedCharacterSvg = document.getElementById("equippedCharacterSvg");
+            if (equippedCharacterSvg && window.HeroSystem && data.equippedCharacterName) {
+                equippedCharacterSvg.innerHTML = window.HeroSystem.getSVG(data.equippedCharacterName, "profile-hero");
+                window.HeroSystem.startIdle("profile-hero", 0);
+            }
+
+            // Sync collection
+            loadOwnedHeroes(data.equippedCharacterId);
 
             const fallbackAvatarText = () => {
                 if (!profileAvatar || !data.username) return;

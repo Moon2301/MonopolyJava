@@ -3,8 +3,14 @@ package com.game.monopoly.service;
 import com.game.monopoly.dto.HeroPurchaseResponse;
 import com.game.monopoly.dto.ShopStateResponse;
 import com.game.monopoly.model.enums.CurrencyType;
-import com.game.monopoly.model.metaData.*;
-import com.game.monopoly.repository.*;
+import com.game.monopoly.model.metaData.CurrencyLedger;
+import com.game.monopoly.model.metaData.Hero;
+import com.game.monopoly.model.metaData.UserOwnedHero;
+import com.game.monopoly.model.metaData.UserProfile;
+import com.game.monopoly.repository.CurrencyLedgerRepository;
+import com.game.monopoly.repository.HeroRepository;
+import com.game.monopoly.repository.UserOwnedHeroRepository;
+import com.game.monopoly.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +46,7 @@ public class HeroShopService {
 
         UserProfile profile = userProfileRepository.findByAccount_AccountId(accountId)
                 .orElseThrow(() -> new RuntimeException("UserProfile not found"));
+
         Hero hero = heroRepository.findById(heroId)
                 .orElseThrow(() -> new RuntimeException("Hero not found"));
 
@@ -58,22 +65,27 @@ public class HeroShopService {
             throw new RuntimeException("Không đủ xu để mua nhân vật");
         }
 
+        // 1. Tính toán và cập nhật số dư mới
         long newBalance = profile.getGold() - price;
         profile.setGold(newBalance);
         userProfileRepository.save(profile);
 
+        // 2. Thêm nhân vật vào kho đồ của User
         UserOwnedHero userOwnedHero = new UserOwnedHero();
         userOwnedHero.setUserProfile(profile);
         userOwnedHero.setHero(hero);
         userOwnedHeroRepository.save(userOwnedHero);
 
+        // 3. Ghi lại lịch sử giao dịch (Đã có setBalanceAfter)
         CurrencyLedger ledger = new CurrencyLedger();
         ledger.setUserProfile(profile);
         ledger.setCurrencyType(CurrencyType.GOLD);
         ledger.setAmount(-price);
-        ledger.setBalanceAfter(newBalance);
+        ledger.setBalanceAfter(newBalance); // <-- Dữ liệu được gán tại đây
         ledger.setReasonType("HERO_PURCHASE");
         ledger.setReferenceId(heroId.longValue());
+
+        // Lưu xuống DB
         currencyLedgerRepository.save(ledger);
 
         return HeroPurchaseResponse.builder()
@@ -83,5 +95,4 @@ public class HeroShopService {
                 .message("Mua nhân vật thành công")
                 .build();
     }
-
 }

@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface CurrencyLedgerRepository extends JpaRepository<CurrencyLedger, Long> {
     List<CurrencyLedger> findByUserProfile_UserProfileId(Long userProfileId);
+    boolean existsByReasonTypeAndReferenceId(String reasonType, Long referenceId);
 }

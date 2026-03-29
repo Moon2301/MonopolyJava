@@ -28,7 +28,10 @@
             <div class="player-info">
                 <div class="player-name-ribbon" id="playerName">Người chơi</div>
                 <div class="player-stats">
-                    <span class="stat-pill"><strong id="playerCoins">0</strong><em>Xu</em></span>
+                    <span class="stat-pill" style="display: flex; gap: 5px; align-items: center;">
+                        <strong id="playerCoins">0</strong><em>Xu</em>
+                        <button type="button" data-route="/topup" class="btn-topup" style="background:#ff9800; border:none; border-radius:50%; width:20px; height:20px; color:white; cursor:pointer; font-weight:bold; font-size:14px; line-height:20px; text-align:center; padding:0; margin-left: 5px;" title="Nạp Xu">+</button>
+                    </span>
                     <span class="stat-pill"><strong id="playerTickets">0</strong><em>Vé</em></span>
                 </div>
             </div>
@@ -43,6 +46,9 @@
             </button>
             <button type="button" class="circle-icon icon-shop" data-route="/shop" aria-label="Cua hang">
                 <span>🛒</span>
+            </button>
+            <button type="button" class="circle-icon icon-topup" data-route="/topup" aria-label="Nap tien" title="Nạp Xu">
+                <span>💰</span>
             </button>
             <button type="button" class="circle-icon close icon-close" data-route="/login" aria-label="Đăng xuất">
                 <span>✕</span>

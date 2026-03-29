@@ -20,7 +20,19 @@
     <section class="shop-grid">
         <p id="shop-loading" class="shop-state">Đang tải danh sách nhân vật...</p>
     </section>
+    <div id="shopModal" class="shop-modal" hidden aria-hidden="true" role="dialog">
+        <div class="shop-modal__backdrop"></div>
+        <div class="shop-modal__panel">
+            <h2 id="modalTitle">Xác nhận mua</h2>
+            <p id="modalDescription">Bạn có chắc chắn muốn mua nhân vật này?</p>
+            <div class="shop-modal__actions">
+                <button type="button" class="modal-btn modal-btn--ghost" id="modalCancel">Hủy</button>
+                <button type="button" class="modal-btn modal-btn--primary" id="modalConfirm">Xác nhận</button>
+            </div>
+        </div>
+    </div>
 </main>
+<script src="/js/hero-system.js"></script>
 <script src="/js/shop.js"></script>
 </body>
 </html>

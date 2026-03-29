@@ -384,3 +384,101 @@ body {
         align-items: flex-start;
     }
 }
+
+/* Collection Section Styles */
+.collection-panel {
+    grid-column: 1 / -1;
+}
+
+.collection-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 20px;
+}
+
+.collection-header h2 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+.collection-count {
+    font-weight: 700;
+    color: var(--muted);
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 6px 12px;
+    border-radius: 999px;
+}
+
+.owned-hero-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+}
+
+.owned-hero-card {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 16px;
+    text-align: center;
+    transition: transform 0.2s, background 0.2s;
+}
+
+.owned-hero-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.owned-hero-card.equipped {
+    border-color: #ffd86b;
+    background: rgba(255, 216, 107, 0.08);
+}
+
+.owned-hero-visual {
+    height: 100px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.owned-hero-name {
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.equip-btn {
+    width: 100%;
+    padding: 8px;
+    border-radius: 12px;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: 0;
+    transition: all 0.2s;
+}
+
+.equip-btn:not(.equipped) {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.equip-btn:not(.equipped):hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.equip-btn.equipped {
+    background: #ffd86b;
+    color: #1a1a2e;
+    cursor: default;
+}
+
+.loading-text {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+}
