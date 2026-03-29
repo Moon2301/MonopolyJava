@@ -19,10 +19,7 @@ public class UserMeSummaryResponse {
     private Integer winRate;
     private Long totalWonAssets;
 
-    /** Hero mặc định đã lưu trong DB (current hero). */
-    private Integer currentHeroId;
-
-    /** Nhân vật hiển thị hồ sơ (suy ra từ current hero + fallback). */
+    /** Nhân vật mặc định (hồ sơ / bàn chơi). */
     private Integer equippedCharacterId;
     private String equippedCharacterName;
     private String equippedCharacterImageUrl;

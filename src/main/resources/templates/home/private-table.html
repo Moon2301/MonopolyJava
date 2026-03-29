@@ -47,18 +47,9 @@
         <div class="settings-bar room-settings-display">
             <div class="settings-label">TABLE SETTINGS</div>
             <button type="button" class="icon-chip" id="roomVisibilityIndicator" aria-label="Che do phong">👁</button>
-            <div class="room-code-display"><strong id="roomCode">-</strong></div>
+            <div class="room-code-display">Room: <strong id="roomCode">-</strong></div>
             <button type="button" class="icon-chip" data-action="copy-code" aria-label="Sao chep ma phong">⧉</button>
         </div>
-    </section>
-
-    <section class="invite-friends-bar" id="inviteFriendsPanel" aria-label="Mời bạn bè">
-        <div class="invite-friends-head">
-            <span class="invite-friends-title">Mời bạn bè</span>
-            <a class="invite-friends-link" href="/friends" data-action="friends-page">Quản lý bạn bè</a>
-        </div>
-        <ul id="inviteFriendsList" class="invite-friends-list"></ul>
-        <p id="inviteFriendsHint" class="invite-friends-hint"></p>
     </section>
 
     <main class="room-layout room-layout-wide">
@@ -73,12 +64,6 @@
                     <div class="hero-current-info">
                         <div class="hero-current-label">Selected Hero</div>
                         <div id="selectedHeroName" class="hero-current-name">No hero selected</div>
-                    </div>
-                    <div id="heroSkillPanel" class="hero-skill-panel" hidden>
-                        <div class="hero-skill-eyebrow">Kỹ năng</div>
-                        <div id="selectedHeroSkillName" class="hero-skill-name"></div>
-                        <p id="selectedHeroSkillDesc" class="hero-skill-desc"></p>
-                        <div id="selectedHeroSkillCd" class="hero-skill-cd"></div>
                     </div>
                 </div>
                 <div id="heroList" class="hero-list"></div>

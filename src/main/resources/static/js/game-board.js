@@ -2,8 +2,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountId = sessionStorage.getItem("accountId");
     const urlParams = new URLSearchParams(window.location.search);
     const gameId = urlParams.get("gameId");
-    /** Phòng private — dùng khi ván kết thúc: nút «Chơi lại» về phòng chờ. */
-    const roomIdParam = urlParams.get("roomId");
     const layoutMapId = urlParams.get("mapId") || "1";
     const isLiveGame = Boolean(gameId);
     const boardElement = document.getElementById("monopolyBoard");
@@ -18,8 +16,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const endTurnButton = document.getElementById("endTurnButton");
     const buyPropertyButton = document.getElementById("buyPropertyButton");
     const upgradePropertyButton = document.getElementById("upgradePropertyButton");
-    const payOppRentButton = document.getElementById("payOppRentButton");
-    const buybackOppButton = document.getElementById("buybackOppButton");
     const gameActionStatus = document.getElementById("gameActionStatus");
     const currentCellName = document.getElementById("currentCellName");
     const currentCellRent = document.getElementById("currentCellRent");
@@ -38,17 +34,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const debtCrisisSummary = document.getElementById("debtCrisisSummary");
     const debtAssetList = document.getElementById("debtAssetList");
     const debtBankruptButton = document.getElementById("debtBankruptButton");
-    const surrenderButton = document.getElementById("surrenderButton");
-    const surrenderConfirmModal = document.getElementById("surrenderConfirmModal");
-    const surrenderCancelButton = document.getElementById("surrenderCancelButton");
-    const surrenderConfirmButton = document.getElementById("surrenderConfirmButton");
     if (debtCrisisModal) {
         debtCrisisModal.hidden = true;
         debtCrisisModal.setAttribute("aria-hidden", "true");
-    }
-    if (surrenderConfirmModal) {
-        surrenderConfirmModal.hidden = true;
-        surrenderConfirmModal.setAttribute("aria-hidden", "true");
     }
 
     let turnTimerInterval = null;
@@ -66,14 +54,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     /** null = hiển thị ô của bạn / ô chính; số = đang hover ô đó */
     let hoverBoardIndex = null;
     let debtActionInFlight = false;
-    let surrenderActionInFlight = false;
-    /** { skillId: string } khi đang chọn ô mục tiêu */
-    let pendingSkillActivation = null;
-    const skillTargetBanner = document.getElementById("skillTargetBanner");
-    const gameEndRankingOverlay = document.getElementById("gameEndRankingOverlay");
-    const gameEndRankingList = document.getElementById("gameEndRankingList");
-    const gameEndRankingPlayAgain = document.getElementById("gameEndRankingPlayAgain");
-    const gameEndRankingExitHome = document.getElementById("gameEndRankingExitHome");
 
     const prefersReducedMotion = () =>
         typeof window.matchMedia === "function" &&
@@ -147,8 +127,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const restartTokenHeroIdle = () => {
         if (!window.HeroSystem) return;
-        players.forEach((player) => {
-            window.HeroSystem.stopIdle(`tok-${player.id}`);
+        window.requestAnimationFrame(() => {
+            players.forEach((player, idx) => {
+                if (!portraitForPlayer(player) && player.heroName) {
+                    window.HeroSystem.startIdle(`tok-${player.id}`, idx * 0.09);
+                }
+            });
         });
     };
 
@@ -310,17 +294,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 : item.price != null
                   ? `$${item.price}`
                   : "";
-        const cid =
-            item.cellId != null && item.cellId !== ""
-                ? Number(item.cellId)
-                : item.cell_id != null
-                  ? Number(item.cell_id)
-                  : null;
         return {
             name: item.name,
             type: displayType,
             price,
-            cellId: Number.isFinite(cid) ? cid : null,
             baseRent: item.baseRent != null && item.baseRent !== "" ? Number(item.baseRent) : null,
             color: item.colorHex || ""
         };
@@ -644,17 +621,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    const setSkillTargetPickMode = (active) => {
-        if (!boardElement) return;
-        boardElement.querySelectorAll(".board-cell").forEach((el) => {
-            el.classList.toggle("board-cell--skill-pick", Boolean(active));
-        });
-        if (skillTargetBanner) {
-            skillTargetBanner.hidden = !active;
-            skillTargetBanner.setAttribute("aria-hidden", active ? "false" : "true");
-        }
-    };
-
     const attachBoardCellHover = () => {
         if (!boardElement) return;
         boardElement.querySelectorAll(".board-cell[data-cell-index]").forEach((el) => {
@@ -745,9 +711,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             const div = document.createElement("div");
             div.className = `board-cell ${getCellClass(cell)}`;
             div.setAttribute("data-cell-index", String(index));
-            if (cell.cellId != null && Number.isFinite(cell.cellId)) {
-                div.setAttribute("data-cell-id", String(cell.cellId));
-            }
             div.style.gridRow = String(placement.row);
             div.style.gridColumn = String(placement.col);
             const sub = cell.price || String(cell.type || "").toUpperCase();
@@ -806,10 +769,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                         s.readyToActivate &&
                         s.skillId != null;
                     const dis = canClick ? "" : " disabled";
-                    const reqT = s.requiresTarget === true ? "1" : "";
                     return `<button type="button" class="player-skill-chip player-skill-chip--active"${dis} data-skill-id="${escapeAttr(
                         String(s.skillId ?? "")
-                    )}" data-requires-target="${reqT}" title="${escapeAttr(title)}">${escapeHtml(skillShortLabel(s.name))}</button>`;
+                    )}" title="${escapeAttr(title)}">${escapeHtml(skillShortLabel(s.name))}</button>`;
                 })
                 .join("");
             const jailBadge = player.inJail
@@ -966,18 +928,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const mountPlayerTokenContent = (el, player, bobDelay) => {
+        const src = portraitForPlayer(player);
         let inner;
-        if (window.HeroSystem && player.heroName) {
-            inner = `<div class="token-pawn__svg token-pawn__svg--hero">${window.HeroSystem.getSVG(player.heroName, `tok-${player.id}`)}</div>`;
+        if (src) {
+            inner = `<img class="token-pawn__img" src="${escapeAttr(src)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="token-pawn__fallback" style="display:none">${escapeHtml(
+                player.avatar
+            )}</span>`;
+        } else if (window.HeroSystem && player.heroName) {
+            inner = `<div class="token-pawn__svg">${window.HeroSystem.getSVG(player.heroName, `tok-${player.id}`)}</div>`;
         } else {
-            const src = portraitForPlayer(player);
-            if (src) {
-                inner = `<img class="token-pawn__img" src="${escapeAttr(src)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'"><span class="token-pawn__fallback" style="display:none">${escapeHtml(
-                    player.avatar
-                )}</span>`;
-            } else {
-                inner = `<span class="token-pawn__fallback">${escapeHtml(player.avatar)}</span>`;
-            }
+            inner = `<span class="token-pawn__fallback">${escapeHtml(player.avatar)}</span>`;
         }
         el.innerHTML = `<div class="token-pawn__body">${inner}</div><div class="token-pawn__shadow" aria-hidden="true"></div>`;
         el.style.setProperty("--bob-delay", `${bobDelay}s`);
@@ -1217,16 +1177,9 @@ document.addEventListener("DOMContentLoaded", async () => {
                 heroImageUrl: p.heroImageUrl || null,
                 heroName: p.heroName || null,
                 isBot: Boolean(p.isBot),
-                isBankrupt: Boolean(p.isBankrupt),
                 inJail: Boolean(p.inJail),
                 jailFailedRolls: p.jailFailedRolls ?? 0,
-                skills: Array.isArray(p.skills)
-                    ? p.skills.map((sk) => ({
-                          ...sk,
-                          requiresTarget: sk.requiresTarget === true,
-                          effectType: sk.effectType ?? null
-                      }))
-                    : []
+                skills: Array.isArray(p.skills) ? p.skills : []
             });
         });
 
@@ -1276,49 +1229,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             }`;
         }
 
-        const oppPending = state.opponentLandPending;
-        const hasOppChoice = Boolean(oppPending && oppPending.rentAmount != null);
-
         if (isLiveGame) {
             if (rollDiceButton) {
                 rollDiceButton.disabled = !myTurn || ts !== "WAIT_ROLL" || !playing;
             }
             if (endTurnButton) {
-                endTurnButton.disabled =
-                    hasOppChoice || !myTurn || ts !== "ACTION_REQUIRED" || !playing;
+                endTurnButton.disabled = !myTurn || ts !== "ACTION_REQUIRED" || !playing;
             }
             if (buyPropertyButton) {
                 buyPropertyButton.disabled =
-                    hasOppChoice ||
-                    !myTurn ||
-                    ts !== "ACTION_REQUIRED" ||
-                    !playing ||
-                    !state.currentCell?.canBuy;
+                    !myTurn || ts !== "ACTION_REQUIRED" || !playing || !state.currentCell?.canBuy;
             }
             if (upgradePropertyButton) {
                 upgradePropertyButton.disabled =
-                    hasOppChoice ||
-                    !myTurn ||
-                    ts !== "ACTION_REQUIRED" ||
-                    !playing ||
-                    !state.currentCell?.canUpgrade;
-            }
-            if (payOppRentButton) {
-                const show = hasOppChoice && myTurn && playing && ts === "ACTION_REQUIRED";
-                payOppRentButton.hidden = !show;
-                payOppRentButton.disabled = !show;
-                if (show && oppPending.rentAmount != null) {
-                    payOppRentButton.textContent = `Trả thuê (${formatMoney(oppPending.rentAmount)})`;
-                }
-            }
-            if (buybackOppButton) {
-                const show = hasOppChoice && myTurn && playing && ts === "ACTION_REQUIRED";
-                buybackOppButton.hidden = !show;
-                buybackOppButton.disabled = !show;
-                if (show && oppPending.buybackPrice != null) {
-                    const pct = oppPending.buybackPercent != null ? oppPending.buybackPercent : 130;
-                    buybackOppButton.textContent = `Mua lại (${pct}% · ${formatMoney(oppPending.buybackPrice)})`;
-                }
+                    !myTurn || ts !== "ACTION_REQUIRED" || !playing || !state.currentCell?.canUpgrade;
             }
 
             const showTimer =
@@ -1340,27 +1264,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     updateTurnTimerDisplay(localSec, true);
                 }, 1000);
             }
-
-            if (surrenderButton) {
-                const myOrder = state.myPlayerTurnOrder;
-                const myP = myOrder != null ? players.find((x) => x.id === myOrder) : null;
-                const can =
-                    isLiveGame &&
-                    Boolean(accountId) &&
-                    playing &&
-                    myP &&
-                    !myP.isBankrupt;
-                surrenderButton.hidden = !can;
-                surrenderButton.disabled = !can;
-            }
         } else {
             if (rollDiceButton) rollDiceButton.disabled = false;
             if (endTurnButton) endTurnButton.disabled = false;
             if (buyPropertyButton) buyPropertyButton.disabled = false;
             if (upgradePropertyButton) upgradePropertyButton.disabled = false;
-            if (payOppRentButton) payOppRentButton.hidden = true;
-            if (buybackOppButton) buybackOppButton.hidden = true;
-            if (surrenderButton) surrenderButton.hidden = true;
             updateTurnTimerDisplay(null, false);
         }
 
@@ -1390,11 +1298,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateDebtCrisisUi(state);
         appendRentNoticesToChat(state);
         appendGameLogsToChat(state);
-        updateGameEndRanking(state);
-        if (String(state?.status || "").toUpperCase() !== "PLAYING" && pendingSkillActivation) {
-            pendingSkillActivation = null;
-            setSkillTargetPickMode(false);
-        }
 
         if (isLiveGame) {
             if (livePollIntervalId != null) {
@@ -1458,40 +1361,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         return response.json();
     };
 
-    const callSurrender = async () => {
-        const response = await fetch(`/api/gameplay/${gameId}/surrender`, {
-            method: "POST",
-            headers: authHeaders(true),
-            body: "{}"
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(text || "Không đầu hàng được");
-        }
-        return response.json();
-    };
-
-    const openSurrenderModal = () => {
-        if (!surrenderConfirmModal) return;
-        surrenderConfirmModal.hidden = false;
-        surrenderConfirmModal.setAttribute("aria-hidden", "false");
-    };
-
-    const closeSurrenderModal = () => {
-        if (!surrenderConfirmModal) return;
-        surrenderConfirmModal.hidden = true;
-        surrenderConfirmModal.setAttribute("aria-hidden", "true");
-    };
-
-    const callSkillActivate = async (skillId, targetCellId) => {
-        const body = { skillId: Number(skillId) };
-        if (targetCellId != null && Number.isFinite(Number(targetCellId))) {
-            body.targetCellId = Number(targetCellId);
-        }
+    const callSkillActivate = async (skillId) => {
         const response = await fetch(`/api/gameplay/${gameId}/skill/activate`, {
             method: "POST",
             headers: authHeaders(true),
-            body: JSON.stringify(body)
+            body: JSON.stringify({ skillId: Number(skillId) })
         });
         if (!response.ok) {
             const text = await response.text();
@@ -1500,132 +1374,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         return response.json();
     };
 
-    const callOpponentLandResolve = async (buyback) => {
-        const response = await fetch(`/api/gameplay/${gameId}/opponent-land`, {
-            method: "POST",
-            headers: authHeaders(true),
-            body: JSON.stringify({ buyback })
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(text || "Thao tác thất bại");
-        }
-        return response.json();
-    };
-
-    const updateGameEndRanking = (state) => {
-        if (!gameEndRankingOverlay || !gameEndRankingList) return;
-        const fin = String(state?.status || "").toUpperCase() === "FINISHED";
-        const rows = state?.finalRanking;
-        if (!fin || !Array.isArray(rows) || rows.length === 0) {
-            gameEndRankingOverlay.hidden = true;
-            gameEndRankingOverlay.setAttribute("aria-hidden", "true");
-            return;
-        }
-        gameEndRankingOverlay.hidden = false;
-        gameEndRankingOverlay.setAttribute("aria-hidden", "false");
-        gameEndRankingList.innerHTML = rows
-            .map((r) => {
-                const botLabel = r.isBot ? " · Bot" : "";
-                const medal =
-                    r.rank === 1 ? "🥇" : r.rank === 2 ? "🥈" : r.rank === 3 ? "🥉" : "🏅";
-                const tier =
-                    r.rank === 1 ? "rank-t1" : r.rank === 2 ? "rank-t2" : r.rank === 3 ? "rank-t3" : "rank-t4";
-                const heroLine =
-                    r.heroName && String(r.heroName).trim()
-                        ? `<span class="game-end-ranking-hero">${escapeHtml(r.heroName)}</span>`
-                        : "";
-                const reward = r.coinReward;
-                const moneyLine = r.isBot
-                    ? `<span class="game-end-ranking-money">Không nhận xu</span>`
-                    : reward != null && reward !== undefined
-                      ? `<span class="game-end-ranking-money">+${formatMoney(reward)} xu <span class="game-end-ranking-money-note">(vào tài khoản)</span></span>`
-                      : `<span class="game-end-ranking-money">Số dư trong ván: ${formatMoney(r.balance)}</span>`;
-                return `<div class="game-end-ranking-row ${tier}" role="listitem">
-            <div class="game-end-ranking-medal" aria-label="Hạng ${r.rank}">${medal}</div>
-            <div class="game-end-ranking-body">
-              <span class="game-end-ranking-name">${escapeHtml(r.displayName)}${botLabel}</span>
-              ${heroLine}
-              ${moneyLine}
-            </div>
-          </div>`;
-            })
-            .join("");
-    };
-
     document.addEventListener("click", async (e) => {
         const btn = e.target.closest(".player-skill-chip--active");
         if (!btn || btn.disabled || !isLiveGame || !gameId) return;
         const sid = btn.dataset.skillId;
         if (!sid) return;
         e.preventDefault();
-        const needsTarget = btn.dataset.requiresTarget === "1";
-        if (needsTarget) {
-            pendingSkillActivation = { skillId: sid };
-            setSkillTargetPickMode(true);
-            setActionStatus("Chọn một ô trên bàn làm mục tiêu (ưu tiên bàn tải từ API).");
-            return;
-        }
         try {
             const data = await callSkillActivate(sid);
             await syncFromState(data.state);
             setActionStatus(data.message || "Đã kích hoạt kỹ năng");
         } catch (error) {
             setActionStatus(error.message || "Kỹ năng thất bại", true);
-        }
-    });
-
-    boardElement?.addEventListener("click", async (e) => {
-        if (!pendingSkillActivation || !isLiveGame || !gameId) return;
-        const cell = e.target.closest(".board-cell");
-        if (!cell) return;
-        e.preventDefault();
-        e.stopPropagation();
-        const idx = parseInt(cell.getAttribute("data-cell-index"), 10);
-        const fromData = cell.getAttribute("data-cell-id");
-        let cid =
-            fromData != null && fromData !== ""
-                ? Number(fromData)
-                : Number.isFinite(idx) && cells[idx]?.cellId != null
-                  ? cells[idx].cellId
-                  : null;
-        if (cid == null || !Number.isFinite(cid)) {
-            setActionStatus("Không xác định được ô (cần bàn từ API có cellId).", true);
-            return;
-        }
-        const sid = pendingSkillActivation.skillId;
-        pendingSkillActivation = null;
-        setSkillTargetPickMode(false);
-        try {
-            const data = await callSkillActivate(sid, cid);
-            await syncFromState(data.state);
-            setActionStatus(data.message || "Đã kích hoạt kỹ năng");
-        } catch (error) {
-            setActionStatus(error.message || "Kỹ năng thất bại", true);
-        }
-    });
-
-    gameEndRankingPlayAgain?.addEventListener("click", () => {
-        if (roomIdParam != null && String(roomIdParam).trim() !== "") {
-            window.location.href = `/private-table?roomId=${encodeURIComponent(String(roomIdParam).trim())}`;
-            return;
-        }
-        if (isBotMode) {
-            window.location.href = "/play-vs-ai";
-            return;
-        }
-        window.location.href = "/home";
-    });
-
-    gameEndRankingExitHome?.addEventListener("click", () => {
-        window.location.href = "/home";
-    });
-
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && pendingSkillActivation) {
-            pendingSkillActivation = null;
-            setSkillTargetPickMode(false);
-            setActionStatus("Đã hủy chọn mục tiêu kỹ năng.");
         }
     });
 
@@ -1691,56 +1451,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             setActionStatus(data.message || "Đã nâng cấp");
         } catch (error) {
             setActionStatus(error.message || "Nâng cấp thất bại", true);
-        }
-    });
-
-    payOppRentButton?.addEventListener("click", async () => {
-        if (!isLiveGame) return;
-        try {
-            const data = await callOpponentLandResolve(false);
-            await syncFromState(data.state);
-            setActionStatus(data.message || "Đã trả thuê");
-        } catch (error) {
-            setActionStatus(error.message || "Thao tác thất bại", true);
-        }
-    });
-
-    buybackOppButton?.addEventListener("click", async () => {
-        if (!isLiveGame) return;
-        try {
-            const data = await callOpponentLandResolve(true);
-            await syncFromState(data.state);
-            setActionStatus(data.message || "Đã mua lại");
-        } catch (error) {
-            setActionStatus(error.message || "Mua lại thất bại", true);
-        }
-    });
-
-    surrenderButton?.addEventListener("click", () => {
-        if (!isLiveGame || !accountId || surrenderActionInFlight) return;
-        openSurrenderModal();
-    });
-    surrenderCancelButton?.addEventListener("click", () => closeSurrenderModal());
-    surrenderConfirmModal?.addEventListener("click", (e) => {
-        if (e.target === surrenderConfirmModal) closeSurrenderModal();
-    });
-    surrenderConfirmButton?.addEventListener("click", async () => {
-        if (!isLiveGame || surrenderActionInFlight) return;
-        surrenderActionInFlight = true;
-        if (surrenderConfirmButton) surrenderConfirmButton.disabled = true;
-        if (surrenderCancelButton) surrenderCancelButton.disabled = true;
-        try {
-            const data = await callSurrender();
-            closeSurrenderModal();
-            await syncFromState(data.state);
-            setActionStatus(data.message || "Đã đầu hàng");
-        } catch (error) {
-            setActionStatus(error.message || "Đầu hàng thất bại", true);
-            if (lastLiveState) await syncFromState(lastLiveState);
-        } finally {
-            surrenderActionInFlight = false;
-            if (surrenderConfirmButton) surrenderConfirmButton.disabled = false;
-            if (surrenderCancelButton) surrenderCancelButton.disabled = false;
         }
     });
 

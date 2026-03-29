@@ -30,8 +30,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const equippedCharacterImage = document.getElementById("equippedCharacterImage");
     const equippedCharacterName = document.getElementById("equippedCharacterName");
-    const currentHeroSelect = document.getElementById("currentHeroSelect");
-    const currentHeroStatus = document.getElementById("currentHeroStatus");
 
     const editAvatarButton = document.getElementById("editAvatarButton");
     const avatarFileInput = document.getElementById("avatarFileInput");
@@ -231,84 +229,10 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (profileAvatar && data.username) {
                 fallbackAvatarText();
             }
-
-            await refreshCurrentHeroSelect(data);
         } catch (error) {
             console.error(error);
         }
     };
-
-    const refreshCurrentHeroSelect = async (summaryData) => {
-        if (!currentHeroSelect) return;
-        try {
-            const response = await fetch("/api/heroes/owned", { headers: getHeaders() });
-            if (handleUnauthorized(response)) return;
-            if (!response.ok) throw new Error("Không tải được danh sách hero.");
-            const heroes = await response.json();
-            const prev = currentHeroSelect.value;
-            currentHeroSelect.innerHTML = "";
-            const placeholder = document.createElement("option");
-            placeholder.value = "";
-            placeholder.textContent = heroes.length ? "— Chọn hero mặc định —" : "Chưa có hero — vào Cửa hàng";
-            currentHeroSelect.appendChild(placeholder);
-            (Array.isArray(heroes) ? heroes : []).forEach((h) => {
-                const opt = document.createElement("option");
-                opt.value = String(h.heroId ?? "");
-                opt.textContent = h.name || `Hero ${h.heroId}`;
-                currentHeroSelect.appendChild(opt);
-            });
-            const targetId =
-                summaryData?.currentHeroId != null
-                    ? String(summaryData.currentHeroId)
-                    : summaryData?.equippedCharacterId != null
-                      ? String(summaryData.equippedCharacterId)
-                      : "";
-            if (targetId && [...currentHeroSelect.options].some((o) => o.value === targetId)) {
-                currentHeroSelect.value = targetId;
-            } else if (prev && [...currentHeroSelect.options].some((o) => o.value === prev)) {
-                currentHeroSelect.value = prev;
-            }
-        } catch (e) {
-            console.error(e);
-            if (currentHeroStatus) currentHeroStatus.textContent = e.message || "Không tải hero.";
-        }
-    };
-
-    let currentHeroSaving = false;
-    currentHeroSelect?.addEventListener("change", async () => {
-        if (currentHeroSaving || !currentHeroSelect) return;
-        const v = currentHeroSelect.value;
-        if (!v) return;
-        currentHeroSaving = true;
-        if (currentHeroStatus) currentHeroStatus.textContent = "";
-        try {
-            const response = await fetch("/api/user/me/current-hero", {
-                method: "POST",
-                headers: getHeaders(true),
-                body: JSON.stringify({ heroId: Number(v) })
-            });
-            if (handleUnauthorized(response)) return;
-            if (!response.ok) {
-                const t = await response.text();
-                throw new Error(t || "Không lưu được.");
-            }
-            const data = await response.json();
-            if (currentHeroStatus) currentHeroStatus.textContent = "Đã lưu hero mặc định.";
-            if (equippedCharacterName) {
-                equippedCharacterName.textContent = data.equippedCharacterName || "-";
-            }
-            if (equippedCharacterImage && data.equippedCharacterImageUrl) {
-                equippedCharacterImage.style.display = "block";
-                equippedCharacterImage.src = data.equippedCharacterImageUrl;
-                equippedCharacterImage.alt = data.equippedCharacterName || "";
-            }
-        } catch (e) {
-            if (currentHeroStatus) currentHeroStatus.textContent = e.message || "Lỗi lưu hero.";
-            await loadSummary();
-        } finally {
-            currentHeroSaving = false;
-        }
-    });
 
     const setAvatarStatus = (message, isError = false) => {
         if (!avatarStatus) return;

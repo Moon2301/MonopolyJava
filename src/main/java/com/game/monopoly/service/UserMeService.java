@@ -97,7 +97,6 @@ public class UserMeService {
                 .matches(matches)
                 .winRate(winRate)
                 .totalWonAssets(totalWonAssets)
-                .currentHeroId(profile.getCurrentHeroId())
                 .equippedCharacterId(equippedCharacterId)
                 .equippedCharacterName(equippedCharacterName)
                 .equippedCharacterImageUrl(equippedCharacterImageUrl)
@@ -128,38 +127,11 @@ public class UserMeService {
     }
 
     /**
-     * Đặt hero mặc định / hiện tại (phải thuộc sở hữu).
-     */
-    @Transactional
-    public UserMeSummaryResponse setCurrentHero(Long accountId, Integer heroId) {
-        if (accountId == null) {
-            throw new RuntimeException("Cần đăng nhập");
-        }
-        if (heroId == null) {
-            throw new RuntimeException("Cần heroId");
-        }
-        Account account = accountRepository.findById(accountId).orElseThrow(() -> new RuntimeException("Account not found"));
-        UserProfile profile =
-                userProfileRepository
-                        .findByAccount_AccountId(account.getAccountId())
-                        .orElseThrow(() -> new RuntimeException("UserProfile not found"));
-        if (!heroOwnershipService.isHeroOwned(accountId, heroId)) {
-            throw new RuntimeException("Bạn chưa sở hữu nhân vật này");
-        }
-        if (heroRepository.findById(heroId).isEmpty()) {
-            throw new RuntimeException("Nhân vật không tồn tại");
-        }
-        profile.setCurrentHeroId(heroId);
-        userProfileRepository.save(profile);
-        return getSummary(accountId);
-    }
-
-    /**
-     * Nhân vật hiển thị hồ sơ: {@link UserProfile#getCurrentHeroId()}, nếu null hoặc không còn tồn tại
+     * Nhân vật hiển thị hồ sơ: {@link UserProfile#getDefaultCharacterId()}, nếu null hoặc không còn tồn tại
      * thì hero mở mặc định đầu tiên, sau đó hero tồn tại sớm nhất theo {@code character_id}.
      */
     private Hero resolveDisplayHero(UserProfile profile) {
-        Integer id = profile.getCurrentHeroId();
+        Integer id = profile.getDefaultCharacterId();
         if (id != null) {
             Optional<Hero> byId = heroRepository.findById(id);
             if (byId.isPresent()) {

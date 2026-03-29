@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch("/api/social/friends/request", {
                 method: "POST",
                 headers: headers(true),
-                body: JSON.stringify({ username: name })
+                body: JSON.stringify({ friendUsername: name })
             });
             if (!res.ok) {
                 const t = await res.text();

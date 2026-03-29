@@ -2,8 +2,6 @@ package com.game.monopoly.service;
 
 import com.game.monopoly.dto.FriendListItemResponse;
 import com.game.monopoly.dto.MessageItemResponse;
-import com.game.monopoly.model.enums.RoomStatus;
-import com.game.monopoly.model.inGameData.Room;
 import com.game.monopoly.model.metaData.*;
 import com.game.monopoly.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -26,8 +24,6 @@ public class SocialService {
     private final UserProfileRepository userProfileRepository;
     private final FriendRepository friendRepository;
     private final MessageRepository messageRepository;
-    private final RoomRepository roomRepository;
-    private final RoomPlayerRepository roomPlayerRepository;
 
     @Transactional(readOnly = true)
     public List<FriendListItemResponse> getFriends(Long accountId) {
@@ -71,7 +67,7 @@ public class SocialService {
     public FriendListItemResponse sendFriendRequest(Long accountId, String friendUsername) {
         UserProfile me = getCurrentProfile(accountId);
         if (friendUsername == null || friendUsername.isBlank()) {
-            throw new RuntimeException("username is required");
+            throw new RuntimeException("friendUsername is required");
         }
 
         UserProfile target = userProfileRepository.findByUsername(friendUsername.trim())
@@ -231,47 +227,6 @@ public class SocialService {
                 .createdAt(message.getCreatedAt().format(DATE_TIME_FORMATTER))
                 .isRead(message.getIsRead())
                 .build();
-    }
-
-    /**
-     * Gửi tin nhắn mời bạn vào phòng (chỉ khi đã kết bạn và bạn đang ở trong phòng chờ).
-     */
-    @Transactional
-    public MessageItemResponse sendRoomInvite(Long accountId, Long toUserProfileId, Long roomId) {
-        if (toUserProfileId == null) {
-            throw new RuntimeException("toUserProfileId is required");
-        }
-        if (roomId == null) {
-            throw new RuntimeException("roomId is required");
-        }
-        UserProfile me = getCurrentProfile(accountId);
-        ensureAcceptedFriend(me.getUserProfileId(), toUserProfileId);
-
-        Room room = roomRepository.findById(roomId).orElseThrow(() -> new RuntimeException("Phòng không tồn tại"));
-        if (room.getStatus() != RoomStatus.WAITING) {
-            throw new RuntimeException("Chỉ mời được khi phòng đang chờ người chơi");
-        }
-        roomPlayerRepository
-                .findByRoom_RoomIdAndAccount_AccountId(roomId, accountId)
-                .orElseThrow(() -> new RuntimeException("Bạn không ở trong phòng này"));
-
-        UserProfile receiver =
-                userProfileRepository.findById(toUserProfileId).orElseThrow(() -> new RuntimeException("Người nhận không tồn tại"));
-        Long receiverAccountId = receiver.getAccount().getAccountId();
-        if (roomPlayerRepository.findByRoom_RoomIdAndAccount_AccountId(roomId, receiverAccountId).isPresent()) {
-            throw new RuntimeException("Người này đã ở trong phòng");
-        }
-
-        String code = room.getRoomCode() != null ? room.getRoomCode() : "";
-        String content =
-                "🎮 "
-                        + me.getUsername()
-                        + " mời bạn vào bàn riêng Monopoly.\nMã phòng: "
-                        + code
-                        + "\nVào phòng chờ: /private-table?roomId="
-                        + roomId
-                        + "\n(Hoặc nhập mã phòng ở menu chính.)";
-        return sendMessage(accountId, toUserProfileId, content);
     }
 
     private UserProfile getCurrentProfile(Long accountId) {

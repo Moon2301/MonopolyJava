@@ -40,12 +40,9 @@ public class UserProfile {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
-    /**
-     * Hero hiện tại / mặc định — dùng cho hồ sơ, phòng chờ và tự gán khi chưa chọn (FK Hero.character_id).
-     * Cột DB: {@code default_character_id} (giữ tương thích).
-     */
+    /** Nhân vật mặc định khi vào bàn / hiển thị hồ sơ (FK logic tới Hero.character_id). */
     @Column(name = "default_character_id")
-    private Integer currentHeroId;
+    private Integer defaultCharacterId;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

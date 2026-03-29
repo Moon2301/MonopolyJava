@@ -182,102 +182,6 @@ body {
     display: block;
 }
 
-.invite-friends-bar {
-    position: relative;
-    z-index: 1;
-    margin-top: 14px;
-    padding: 14px 18px 16px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.14);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    box-shadow: var(--shadow);
-}
-
-.invite-friends-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 10px;
-}
-
-.invite-friends-title {
-    font-weight: 800;
-    font-size: 1.05rem;
-    color: #fff;
-    letter-spacing: 0.04em;
-}
-
-.invite-friends-link {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #fff8d0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-}
-
-.invite-friends-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.invite-friends-empty {
-    font-size: 0.92rem;
-    color: rgba(255, 255, 255, 0.92);
-    line-height: 1.45;
-}
-
-.invite-friends-empty a {
-    color: #fff8d0;
-    font-weight: 600;
-}
-
-.invite-friend-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.12);
-}
-
-.invite-friend-name {
-    font-weight: 700;
-    color: #fff;
-    font-size: 0.95rem;
-}
-
-.invite-friend-btn {
-    flex-shrink: 0;
-    padding: 8px 14px;
-    border: 0;
-    border-radius: 999px;
-    font: inherit;
-    font-weight: 700;
-    font-size: 0.85rem;
-    cursor: pointer;
-    color: #1a3d1a;
-    background: linear-gradient(135deg, #86efac, #22c55e);
-    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
-}
-
-.invite-friend-btn:hover {
-    filter: brightness(1.05);
-}
-
-.invite-friends-hint {
-    margin: 8px 0 0;
-    font-size: 0.82rem;
-    color: rgba(255, 255, 255, 0.75);
-}
-
 .settings-bar {
     display: grid;
     grid-template-columns: 240px 76px 1fr 76px;
@@ -441,53 +345,9 @@ body {
 
 .hero-selection-header {
     display: grid;
-    grid-template-columns: 160px minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-columns: 160px minmax(0, 1fr);
     gap: 16px;
-    align-items: start;
-}
-
-@media (max-width: 960px) {
-    .hero-selection-header {
-        grid-template-columns: 1fr;
-    }
-}
-
-.hero-skill-panel {
-    padding: 12px 14px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.55);
-    border: 2px solid rgba(255, 255, 255, 0.65);
-    min-height: 120px;
-}
-
-.hero-skill-eyebrow {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: rgba(87, 60, 48, 0.65);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 4px;
-}
-
-.hero-skill-name {
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: var(--text-dark);
-    margin-bottom: 8px;
-}
-
-.hero-skill-desc {
-    margin: 0;
-    font-size: 0.95rem;
-    line-height: 1.45;
-    color: rgba(55, 40, 32, 0.88);
-}
-
-.hero-skill-cd {
-    margin-top: 10px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: rgba(87, 60, 48, 0.72);
+    align-items: center;
 }
 
 .hero-current-media {

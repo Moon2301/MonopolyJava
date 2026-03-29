@@ -54,22 +54,4 @@ public class GamePlayer {
     @Builder.Default
     @Column(name = "skill_cooldown_remaining")
     private Integer skillCooldownRemaining = 0;
-
-    /** Thứ tự bị loại (1 = ra đầu tiên); người thắng = null. */
-    @Column(name = "elimination_order")
-    private Integer eliminationOrder;
-
-    /** Skill Điều Khoản Vàng: ô đánh dấu (cellId) để mua lại theo {@link #skillBuybackPercent}. */
-    @Column(name = "skill_marked_cell_id")
-    private Integer skillMarkedCellId;
-
-    /** Phần trăm giá niêm yết khi mua lại ô đã đánh dấu (vd 100 = đúng giá gốc). */
-    @Column(name = "skill_buyback_percent")
-    private Integer skillBuybackPercent;
-
-    /**
-     * Xu thưởng (10–200) cộng vào tài khoản khi ván kết thúc — hiển thị thay số dư trong ván ở màn kết quả.
-     */
-    @Column(name = "end_match_coin_reward")
-    private Integer endMatchCoinReward;
 }

@@ -1,99 +1,149 @@
-.play-vs-ai-page .ai-top-hint {
-    padding: 0 8px 8px;
+:root {
+    --text: #f7f8ff;
+    --muted: rgba(247, 248, 255, 0.74);
 }
 
-.ai-setup-hint {
+* { box-sizing: border-box; }
+
+body {
     margin: 0;
-    font-size: 0.92rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.88);
-    text-align: center;
-    max-width: 720px;
-    margin-left: auto;
-    margin-right: auto;
-    line-height: 1.45;
+    min-height: 100vh;
+    font-family: "Outfit", sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at top right, rgba(255, 121, 84, 0.26), transparent 24%),
+        radial-gradient(circle at left center, rgba(110, 127, 255, 0.3), transparent 24%),
+        linear-gradient(145deg, #120f2f, #171641 50%, #2b1243);
+    display: grid;
+    place-items: center;
+    padding: 24px;
 }
 
-.ai-active-slot-hint {
-    margin: 8px 0 0;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: rgba(87, 60, 48, 0.72);
+.ai-page {
+    width: 100%;
+    display: grid;
+    place-items: center;
 }
 
-.slot-card.ai-slot {
-    position: relative;
+.ai-card {
+    width: min(760px, 100%);
+    padding: 28px;
+    border-radius: 26px;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
 }
 
-.slot-bot-badge {
-    display: inline-block;
-    margin-bottom: 8px;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.03em;
-    background: rgba(30, 136, 229, 0.18);
-    color: #0d47a1;
-}
-
-.slot-bot-badge--hard {
-    background: rgba(183, 28, 28, 0.18);
-    color: #b71c1c;
-}
-
-.slot-add-popover {
-    position: absolute;
-    left: 50%;
-    bottom: 52%;
-    transform: translateX(-50%);
-    z-index: 5;
-    min-width: 200px;
-    padding: 12px;
-    border-radius: 16px;
-    background: rgba(255, 252, 247, 0.98);
-    border: 2px solid rgba(30, 136, 229, 0.35);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.slot-add-popover button {
-    border: none;
-    border-radius: 12px;
-    padding: 10px 12px;
-    font-weight: 800;
-    font-family: inherit;
-    cursor: pointer;
-    background: linear-gradient(180deg, #42a5f5, #1e88e5);
-    color: #fff;
-}
-
-.slot-add-popover button:last-of-type {
-    background: linear-gradient(180deg, #ef5350, #c62828);
-}
-
-.slot-add-hint {
-    margin: 4px 0 0;
+.section-tag {
+    margin: 0 0 8px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
     font-size: 0.75rem;
-    line-height: 1.35;
-    color: rgba(55, 40, 32, 0.65);
 }
 
-.slot-remove-bot {
-    margin-top: 10px;
-    border: none;
-    border-radius: 12px;
-    padding: 8px 12px;
-    font-weight: 800;
-    font-family: inherit;
+.ai-card h1 {
+    margin: 0;
+    font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.ai-desc {
+    margin: 8px 0 20px;
+    color: var(--muted);
+}
+
+.bot-count-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.bot-count-row label {
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+}
+
+.bot-count-select {
+    min-width: 160px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    font: inherit;
+}
+
+.difficulty-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.difficulty-button {
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 18px;
+    padding: 18px 16px;
+    text-align: left;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+    font: inherit;
     cursor: pointer;
-    background: rgba(0, 0, 0, 0.06);
-    color: rgba(55, 40, 32, 0.85);
 }
 
-.slot-card.slot-focus {
-    outline: 3px solid rgba(30, 136, 229, 0.55);
-    outline-offset: 2px;
+.difficulty-button strong {
+    display: block;
+    font-size: 1.2rem;
+    margin-bottom: 4px;
+}
+
+.difficulty-button span {
+    color: var(--muted);
+}
+
+.difficulty-button.active {
+    border-color: rgba(255, 165, 59, 0.9);
+    background: linear-gradient(135deg, rgba(255, 166, 71, 0.32), rgba(255, 78, 137, 0.32));
+}
+
+.action-row {
+    margin-top: 20px;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.action-row button {
+    border: 0;
+    border-radius: 14px;
+    padding: 12px 16px;
+    font: inherit;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+}
+
+.action-row .accent {
+    background: linear-gradient(135deg, #ff8759, #ff4e89);
+}
+
+.action-row .ghost {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.status-line {
+    margin: 14px 0 0;
+    min-height: 20px;
+    color: var(--muted);
+}
+
+@media (max-width: 700px) {
+    .difficulty-grid {
+        grid-template-columns: 1fr;
+    }
 }

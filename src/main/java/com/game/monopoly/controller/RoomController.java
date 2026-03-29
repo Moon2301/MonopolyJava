@@ -66,15 +66,6 @@ public class RoomController {
         return roomService.selectHero(roomId, request, accountId);
     }
 
-    /** Gán hero mặc định từ hồ sơ nếu chưa chọn (phòng chờ). */
-    @PostMapping("/{roomId}/hero/apply-default")
-    public RoomHeroSelectResponse applyDefaultHero(
-            @PathVariable Long roomId,
-            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
-    ) {
-        return roomService.applyDefaultHeroFromProfile(roomId, accountId);
-    }
-
     @PostMapping("/{roomId}/ready")
     public RoomReadyResponse setReady(
             @PathVariable Long roomId,

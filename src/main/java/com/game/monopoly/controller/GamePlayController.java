@@ -53,16 +53,6 @@ public class GamePlayController {
         return gamePlayService.buyCurrentCell(gameId, accountId);
     }
 
-    @PostMapping("/{gameId}/opponent-land")
-    public GameActionResponse resolveOpponentLand(
-            @PathVariable Long gameId,
-            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
-            @RequestBody(required = false) OpponentLandResolveRequest request
-    ) {
-        boolean buyback = request != null && request.isBuyback();
-        return gamePlayService.resolveOpponentLand(gameId, accountId, buyback);
-    }
-
     @PostMapping("/{gameId}/upgrade")
     public GameActionResponse upgradeCurrentCell(
             @PathVariable Long gameId,
@@ -94,13 +84,5 @@ public class GamePlayController {
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId
     ) {
         return gamePlayService.declareBankruptcyForDebt(gameId, accountId);
-    }
-
-    @PostMapping("/{gameId}/surrender")
-    public GameActionResponse surrender(
-            @PathVariable Long gameId,
-            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
-    ) {
-        return gamePlayService.surrenderGame(gameId, accountId);
     }
 }

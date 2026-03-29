@@ -4,12 +4,10 @@ import com.game.monopoly.dto.DebtSellRequest;
 import com.game.monopoly.dto.GameActionResponse;
 import com.game.monopoly.dto.GameStateResponse;
 import com.game.monopoly.dto.SkillActivateRequest;
-import com.game.monopoly.dto.BotSlotRequest;
 import com.game.monopoly.dto.StartBotGameRequest;
 import com.game.monopoly.dto.StartBotGameResponse;
 import com.game.monopoly.MonopolyGameRules;
 import com.game.monopoly.model.enums.GameStatus;
-import com.game.monopoly.model.enums.RoomStatus;
 import com.game.monopoly.model.inGameData.Game;
 import com.game.monopoly.model.inGameData.GamePlayer;
 import com.game.monopoly.model.inGameData.PlayerProperty;
@@ -45,7 +43,6 @@ public class GamePlayService {
     private static final int HUMAN_ACTION_SECONDS = 35;
 
     private final GameRepository gameRepository;
-    private final RoomRepository roomRepository;
     private final GamePlayerRepository gamePlayerRepository;
     private final PlayerPropertyRepository playerPropertyRepository;
     private final BoardCellRepository boardCellRepository;
@@ -60,36 +57,10 @@ public class GamePlayService {
 
     private final Map<Long, Integer[]> lastDiceByGame = new HashMap<>();
     private final Map<Long, String> botDifficultyByGame = new HashMap<>();
-    /** Độ khó theo từng bot (gamePlayerId). */
-    private final Map<Long, String> botDifficultyByGamePlayerId = new ConcurrentHashMap<>();
     /** Trả về trong getState một lần rồi xóa — để client hiển thị chat hệ thống. */
     private final Map<Long, List<GameStateResponse.RentNoticeDto>> pendingRentNotices = new ConcurrentHashMap<>();
 
     private final Map<Long, List<String>> pendingGameLogs = new ConcurrentHashMap<>();
-
-    /** Đất đối thủ: đủ tiền mua lại (mặc định 130% hoặc skill Điều Khoản Vàng) — chờ trả thuê hoặc mua lại. */
-    private static final class OpponentLandPending {
-        final long rentAmount;
-        final long buybackPrice;
-        final int cellId;
-        final long ownerGamePlayerId;
-        final int buybackPercent;
-
-        OpponentLandPending(
-                long rentAmount,
-                long buybackPrice,
-                int cellId,
-                long ownerGamePlayerId,
-                int buybackPercent) {
-            this.rentAmount = rentAmount;
-            this.buybackPrice = buybackPrice;
-            this.cellId = cellId;
-            this.ownerGamePlayerId = ownerGamePlayerId;
-            this.buybackPercent = buybackPercent;
-        }
-    }
-
-    private final Map<Long, OpponentLandPending> pendingOpponentLandByGameId = new ConcurrentHashMap<>();
 
     private static final NumberFormat VI_MONEY =
             NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
@@ -137,23 +108,11 @@ public class GamePlayService {
     @Transactional
     public StartBotGameResponse startBotGame(Long accountId, StartBotGameRequest request) {
         UserProfile profile = getProfileByAccountId(accountId);
-        String legacyDifficulty = normalizeDifficulty(request != null ? request.getDifficulty() : null);
-
-        List<BotSlotRequest> slotList =
-                request != null && request.getBotSlots() != null && !request.getBotSlots().isEmpty()
-                        ? request.getBotSlots().stream().limit(3).toList()
-                        : null;
-
-        int botCount;
-        if (slotList != null) {
-            botCount = Math.min(3, Math.max(1, slotList.size()));
-        } else {
-            botCount = 1;
-            if (request != null && request.getBotCount() != null) {
-                botCount = Math.min(3, Math.max(1, request.getBotCount()));
-            }
+        String difficulty = normalizeDifficulty(request != null ? request.getDifficulty() : null);
+        int botCount = 1;
+        if (request != null && request.getBotCount() != null) {
+            botCount = Math.min(3, Math.max(1, request.getBotCount()));
         }
-
         int maxPlayers = 1 + botCount;
 
         Game game = Game.builder()
@@ -165,7 +124,6 @@ public class GamePlayService {
                 .currentPlayerOrder(1)
                 .turnState("WAIT_ROLL")
                 .version(1)
-                .eliminationSequence(0)
                 .createdAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now())
                 .humanTurnStartedAt(LocalDateTime.now())
@@ -190,74 +148,38 @@ public class GamePlayService {
 
         List<GamePlayer> toSave = new ArrayList<>();
         toSave.add(human);
-
-        if (slotList != null) {
-            for (int b = 0; b < botCount; b++) {
-                BotSlotRequest slot = slotList.get(b);
-                String diff = normalizeDifficulty(slot != null ? slot.getDifficulty() : null);
-                Integer cid = slot != null ? slot.getHeroId() : null;
-                if (cid != null && heroRepository.findById(cid).isEmpty()) {
-                    cid = null;
-                }
-                long botBal =
-                        "hard".equals(diff)
-                                ? MonopolyGameRules.IN_GAME_STARTING_BALANCE + MonopolyGameRules.IN_GAME_BOT_HARD_EXTRA
-                                : MonopolyGameRules.IN_GAME_STARTING_BALANCE;
-                GamePlayer bot = GamePlayer.builder()
-                        .gameId(game.getGameId())
-                        .userProfileId(null)
-                        .characterId(cid)
-                        .turnOrder(2 + b)
-                        .balance(botBal)
-                        .position(0)
-                        .isBankrupt(false)
-                        .isBot(true)
-                        .build();
-                toSave.add(bot);
-            }
-        } else {
-            long botStartBalance =
-                    "hard".equals(legacyDifficulty)
-                            ? MonopolyGameRules.IN_GAME_STARTING_BALANCE + MonopolyGameRules.IN_GAME_BOT_HARD_EXTRA
-                            : MonopolyGameRules.IN_GAME_STARTING_BALANCE;
-            for (int b = 1; b <= botCount; b++) {
-                GamePlayer bot = GamePlayer.builder()
-                        .gameId(game.getGameId())
-                        .userProfileId(null)
-                        .characterId(null)
-                        .turnOrder(1 + b)
-                        .balance(botStartBalance)
-                        .position(0)
-                        .isBankrupt(false)
-                        .isBot(true)
-                        .build();
-                toSave.add(bot);
-            }
+        long botStartBalance =
+                "hard".equals(difficulty)
+                        ? MonopolyGameRules.IN_GAME_STARTING_BALANCE + MonopolyGameRules.IN_GAME_BOT_HARD_EXTRA
+                        : MonopolyGameRules.IN_GAME_STARTING_BALANCE;
+        for (int b = 1; b <= botCount; b++) {
+            GamePlayer bot = GamePlayer.builder()
+                    .gameId(game.getGameId())
+                    .userProfileId(null)
+                    .characterId(null)
+                    .turnOrder(1 + b)
+                    .balance(botStartBalance)
+                    .position(0)
+                    .isBankrupt(false)
+                    .isBot(true)
+                    .build();
+            toSave.add(bot);
         }
 
-        List<GamePlayer> savedPlayers = new ArrayList<>(gamePlayerRepository.saveAll(toSave));
+        gamePlayerRepository.saveAll(toSave);
+        botDifficultyByGame.put(game.getGameId(), difficulty);
 
-        Long gid = game.getGameId();
-        if (slotList != null) {
-            int slotIdx = 0;
-            for (GamePlayer gp : savedPlayers) {
-                if (Boolean.TRUE.equals(gp.getIsBot()) && slotIdx < slotList.size()) {
-                    BotSlotRequest slot = slotList.get(slotIdx++);
-                    String diff = normalizeDifficulty(slot != null ? slot.getDifficulty() : null);
-                    botDifficultyByGamePlayerId.put(gp.getGamePlayerId(), diff);
-                }
-            }
-            botDifficultyByGame.put(gid, "mixed");
-        } else {
-            botDifficultyByGame.put(gid, legacyDifficulty);
-        }
-
-        String redirectDiff = slotList != null ? "mixed" : legacyDifficulty;
         return StartBotGameResponse.builder()
-                .gameId(gid)
-                .difficulty(redirectDiff)
+                .gameId(game.getGameId())
+                .difficulty(difficulty)
                 .botCount(botCount)
-                .redirectUrl("/game-board?gameId=" + gid + "&vsBot=1&difficulty=" + redirectDiff + "&bots=" + botCount)
+                .redirectUrl(
+                        "/game-board?gameId="
+                                + game.getGameId()
+                                + "&vsBot=1&difficulty="
+                                + difficulty
+                                + "&bots="
+                                + botCount)
                 .build();
     }
 
@@ -281,7 +203,6 @@ public class GamePlayService {
 
         Integer turnSecondsRemaining = computeTurnSecondsRemaining(game, currentPlayer);
         Boolean myTurn = computeMyTurn(accountId, currentPlayer);
-        Integer myPlayerTurnOrder = resolveMyPlayerTurnOrder(accountId, players);
 
         List<GameStateResponse.RentNoticeDto> rentNotices =
                 Optional.ofNullable(pendingRentNotices.remove(gameId)).orElseGet(List::of);
@@ -298,7 +219,6 @@ public class GamePlayService {
                 .lastDice2(dice[1])
                 .turnSecondsRemaining(turnSecondsRemaining)
                 .myTurn(myTurn)
-                .myPlayerTurnOrder(myPlayerTurnOrder)
                 .totalBoardCells(getBoardCellCount(game))
                 .currentCell(toCellInfo(currentCell, currentCellProperty.orElse(null), currentPlayer, game.getTurnState()))
                 .players(players.stream().map(this::toPlayerState).toList())
@@ -306,132 +226,7 @@ public class GamePlayService {
                 .rentNotices(rentNotices)
                 .gameLogLines(gameLogLines)
                 .debtSituation(buildDebtSituation(game, currentPlayer))
-                .opponentLandPending(buildOpponentLandPending(gameId, currentCell))
-                .finalRanking(
-                        game.getStatus() == GameStatus.FINISHED ? buildFinalRanking(game) : null)
                 .build();
-    }
-
-    private GameStateResponse.OpponentLandPendingDto buildOpponentLandPending(Long gameId, BoardCell currentCell) {
-        OpponentLandPending p = pendingOpponentLandByGameId.get(gameId);
-        if (p == null || currentCell.getCellId() == null || !Objects.equals(p.cellId, currentCell.getCellId())) {
-            return null;
-        }
-        return GameStateResponse.OpponentLandPendingDto.builder()
-                .rentAmount(p.rentAmount)
-                .buybackPrice(p.buybackPrice)
-                .buybackPercent(p.buybackPercent)
-                .cellName(currentCell.getName())
-                .build();
-    }
-
-    private List<GameStateResponse.FinalRankingEntryDto> buildFinalRanking(Game game) {
-        List<GamePlayer> list = gamePlayerRepository.findByGameIdOrderByTurnOrderAsc(game.getGameId());
-        List<GamePlayer> ranked = new ArrayList<>(list);
-        Long winnerId = game.getWinnerPlayerId();
-        ranked.sort(
-                (a, b) -> {
-                    Integer ea = a.getEliminationOrder();
-                    Integer eb = b.getEliminationOrder();
-                    boolean aWin =
-                            winnerId != null
-                                    && Objects.equals(a.getGamePlayerId(), winnerId)
-                                    && !Boolean.TRUE.equals(a.getIsBankrupt());
-                    boolean bWin =
-                            winnerId != null
-                                    && Objects.equals(b.getGamePlayerId(), winnerId)
-                                    && !Boolean.TRUE.equals(b.getIsBankrupt());
-                    if (aWin && !bWin) {
-                        return -1;
-                    }
-                    if (!aWin && bWin) {
-                        return 1;
-                    }
-                    if (ea == null && eb != null) {
-                        return -1;
-                    }
-                    if (ea != null && eb == null) {
-                        return 1;
-                    }
-                    if (ea == null && eb == null) {
-                        int at = a.getTurnOrder() != null ? a.getTurnOrder() : 0;
-                        int bt = b.getTurnOrder() != null ? b.getTurnOrder() : 0;
-                        return Integer.compare(at, bt);
-                    }
-                    return Integer.compare(eb, ea);
-                });
-        List<GameStateResponse.FinalRankingEntryDto> out = new ArrayList<>();
-        int r = 1;
-        for (GamePlayer gp : ranked) {
-            String heroName = null;
-            if (gp.getCharacterId() != null) {
-                heroName =
-                        heroRepository.findById(gp.getCharacterId()).map(Hero::getName).orElse(null);
-            }
-            Long coinReward = rankingCoinRewardForDisplay(gp);
-            out.add(
-                    GameStateResponse.FinalRankingEntryDto.builder()
-                            .rank(r++)
-                            .turnOrder(gp.getTurnOrder())
-                            .displayName(displayNameForPlayer(gp))
-                            .heroName(heroName)
-                            .balance(gp.getBalance() == null ? 0L : gp.getBalance())
-                            .coinReward(coinReward)
-                            .isBot(gp.getIsBot())
-                            .build());
-        }
-        return out;
-    }
-
-    /** Bot: không thưởng xu; người: xu đã cấp (null nếu dữ liệu ván cũ). */
-    private Long rankingCoinRewardForDisplay(GamePlayer gp) {
-        if (Boolean.TRUE.equals(gp.getIsBot())) {
-            return null;
-        }
-        if (gp.getEndMatchCoinReward() != null) {
-            return gp.getEndMatchCoinReward().longValue();
-        }
-        return null;
-    }
-
-    /**
-     * Mỗi người chơi thật nhận ngẫu nhiên 10–200 xu vào tài khoản; chỉ chạy một lần khi ván kết thúc.
-     */
-    private void awardEndMatchCoins(Long gameId) {
-        List<GamePlayer> players = gamePlayerRepository.findByGameIdOrderByTurnOrderAsc(gameId);
-        for (GamePlayer gp : players) {
-            if (Boolean.TRUE.equals(gp.getIsBot()) || gp.getUserProfileId() == null) {
-                continue;
-            }
-            if (gp.getEndMatchCoinReward() != null) {
-                continue;
-            }
-            int reward = 10 + random.nextInt(191);
-            gp.setEndMatchCoinReward(reward);
-            userProfileRepository
-                    .findById(gp.getUserProfileId())
-                    .ifPresent(
-                            profile -> {
-                                long g = profile.getGold() == null ? 0L : profile.getGold();
-                                profile.setGold(g + reward);
-                                userProfileRepository.save(profile);
-                            });
-            gamePlayerRepository.save(gp);
-        }
-    }
-
-    /** Gán thứ tự bị loại (phục vụ bảng xếp hạng). */
-    private void assignEliminationOrderOnBankruptcy(Game game, GamePlayer p) {
-        if (p.getEliminationOrder() != null) {
-            return;
-        }
-        Game g = getGame(game.getGameId());
-        int seq = g.getEliminationSequence() == null ? 0 : g.getEliminationSequence();
-        seq++;
-        g.setEliminationSequence(seq);
-        p.setEliminationOrder(seq);
-        gameRepository.save(g);
-        gamePlayerRepository.save(p);
     }
 
     private List<GameStateResponse.OwnedCellDto> buildOwnedCellsSnapshot(Game game) {
@@ -506,9 +301,6 @@ public class GamePlayService {
         if (!"ACTION_REQUIRED".equalsIgnoreCase(game.getTurnState())) {
             throw new RuntimeException("Không thể mua ô ở thời điểm hiện tại");
         }
-        if (pendingOpponentLandByGameId.containsKey(game.getGameId())) {
-            throw new RuntimeException("Hãy chọn trả thuê hoặc mua lại đất đối thủ trước");
-        }
 
         BoardCell cell = getCellByPosition(game, player.getPosition());
         if (!isPurchasableCell(cell)) {
@@ -556,115 +348,6 @@ public class GamePlayService {
     }
 
     @Transactional
-    public GameActionResponse resolveOpponentLand(Long gameId, Long accountId, boolean buyback) {
-        Game game = getGame(gameId);
-        GamePlayer player = getCurrentTurnPlayer(game);
-        validateHumanTurn(player, accountId);
-
-        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
-            throw new RuntimeException("Bạn đang nợ tiền thuê — không thể thực hiện");
-        }
-        if (!"ACTION_REQUIRED".equalsIgnoreCase(game.getTurnState())) {
-            throw new RuntimeException("Không thể thực hiện lúc này");
-        }
-        OpponentLandPending p = pendingOpponentLandByGameId.get(gameId);
-        if (p == null) {
-            throw new RuntimeException("Không có lựa chọn mua lại / trả thuê");
-        }
-        BoardCell at = getCellByPosition(game, player.getPosition());
-        if (at.getCellId() == null || !Objects.equals(at.getCellId(), p.cellId)) {
-            pendingOpponentLandByGameId.remove(gameId);
-            throw new RuntimeException("Ô không khớp — hãy tải lại trạng thái");
-        }
-        BoardCell cell = boardCellRepository.findById(p.cellId).orElseThrow();
-        PlayerProperty prop =
-                playerPropertyRepository.findByGame_GameIdAndBoardCell_CellId(gameId, p.cellId).orElseThrow();
-        GamePlayer owner = prop.getOwnerPlayer();
-        if (owner == null || !Objects.equals(owner.getGamePlayerId(), p.ownerGamePlayerId)) {
-            pendingOpponentLandByGameId.remove(gameId);
-            throw new RuntimeException("Ô đã đổi chủ");
-        }
-        if (Objects.equals(owner.getGamePlayerId(), player.getGamePlayerId())) {
-            pendingOpponentLandByGameId.remove(gameId);
-            return actionResult(gameId, "Ô của bạn", accountId);
-        }
-
-        if (buyback) {
-            long price = p.buybackPrice;
-            long bal = player.getBalance() == null ? 0L : player.getBalance();
-            if (bal < price) {
-                throw new RuntimeException("Không đủ tiền để mua lại");
-            }
-            clearSkillBuybackMarkForCell(player, p.cellId);
-            pendingOpponentLandByGameId.remove(gameId);
-            long ob = owner.getBalance() == null ? 0L : owner.getBalance();
-            player.setBalance(bal - price);
-            owner.setBalance(ob + price);
-            prop.setOwnerPlayer(player);
-            gamePlayerRepository.save(player);
-            gamePlayerRepository.save(owner);
-            playerPropertyRepository.save(prop);
-            game.setHumanTurnStartedAt(LocalDateTime.now());
-            gameRepository.save(game);
-            enqueueGameLog(
-                    gameId,
-                    displayNameForPlayer(player)
-                            + " mua lại \""
-                            + (cell.getName() != null ? cell.getName() : "Ô")
-                            + "\" từ "
-                            + displayNameForPlayer(owner)
-                            + " · trả "
-                            + formatMoneyLog(price)
-                            + " ("
-                            + p.buybackPercent
-                            + "% giá niêm yết).");
-            return actionResult(gameId, "Đã mua lại ô " + cell.getName(), accountId);
-        }
-
-        clearSkillBuybackMarkForCell(player, p.cellId);
-        pendingOpponentLandByGameId.remove(gameId);
-        payRentAfterLanding(game, player, owner, cell, p.rentAmount);
-        game = getGame(gameId);
-        game.setHumanTurnStartedAt(LocalDateTime.now());
-        gameRepository.save(game);
-        return actionResult(gameId, "Đã trả tiền thuê", accountId);
-    }
-
-    /** Bot luôn trả thuê (không mua lại) khi có pending. */
-    private void resolveOpponentLandForBot(Game game, GamePlayer bot) {
-        Long gid = game.getGameId();
-        OpponentLandPending p = pendingOpponentLandByGameId.get(gid);
-        if (p == null) {
-            return;
-        }
-        BoardCell at = getCellByPosition(game, bot.getPosition());
-        if (at.getCellId() == null || !Objects.equals(at.getCellId(), p.cellId)) {
-            return;
-        }
-        PlayerProperty prop =
-                playerPropertyRepository.findByGame_GameIdAndBoardCell_CellId(gid, p.cellId).orElse(null);
-        if (prop == null || prop.getOwnerPlayer() == null) {
-            pendingOpponentLandByGameId.remove(gid);
-            return;
-        }
-        GamePlayer owner = prop.getOwnerPlayer();
-        if (!Objects.equals(owner.getGamePlayerId(), p.ownerGamePlayerId)) {
-            pendingOpponentLandByGameId.remove(gid);
-            return;
-        }
-        BoardCell cell = boardCellRepository.findById(p.cellId).orElse(null);
-        if (cell == null) {
-            pendingOpponentLandByGameId.remove(gid);
-            return;
-        }
-        clearSkillBuybackMarkForCell(bot, p.cellId);
-        pendingOpponentLandByGameId.remove(gid);
-        payRentAfterLanding(game, bot, owner, cell, p.rentAmount);
-        game = getGame(gid);
-        gameRepository.save(game);
-    }
-
-    @Transactional
     public GameActionResponse upgradeCurrentCell(Long gameId, Long accountId) {
         Game game = getGame(gameId);
         GamePlayer player = getCurrentTurnPlayer(game);
@@ -675,9 +358,6 @@ public class GamePlayService {
         }
         if (!"ACTION_REQUIRED".equalsIgnoreCase(game.getTurnState())) {
             throw new RuntimeException("Không thể nâng cấp ở thời điểm hiện tại");
-        }
-        if (pendingOpponentLandByGameId.containsKey(game.getGameId())) {
-            throw new RuntimeException("Hãy chọn trả thuê hoặc mua lại đất đối thủ trước");
         }
 
         BoardCell cell = getCellByPosition(game, player.getPosition());
@@ -734,9 +414,6 @@ public class GamePlayService {
         }
         if ("WAIT_ROLL".equalsIgnoreCase(game.getTurnState())) {
             throw new RuntimeException("Hãy tung xúc xắc trước khi kết thúc lượt");
-        }
-        if (pendingOpponentLandByGameId.containsKey(game.getGameId())) {
-            throw new RuntimeException("Hãy chọn trả thuê hoặc mua lại đất đối thủ (130%) trước khi kết thúc lượt");
         }
 
         player.setConsecutiveDoubles(0);
@@ -933,110 +610,6 @@ public class GamePlayService {
         gamePlayerRepository.save(p);
     }
 
-    private boolean isCommunityChestCell(BoardCell cell) {
-        if (cell.getType() == null) {
-            return false;
-        }
-        String u = cell.getType().toUpperCase(Locale.ROOT);
-        return u.contains("COMMUNITY");
-    }
-
-    /** Community Chest: tiền ngẫu nhiên 50–300. */
-    private void grantChestRandomMoney(Game game, GamePlayer p, String labelSuffix) {
-        long gift = 50L + random.nextInt(251);
-        long bal = p.getBalance() == null ? 0L : p.getBalance();
-        p.setBalance(bal + gift);
-        gamePlayerRepository.save(p);
-        enqueueGameLog(
-                game.getGameId(),
-                displayNameForPlayer(p) + " nhận " + formatMoneyLog(gift) + " " + labelSuffix + ".");
-    }
-
-    private boolean isTaxCell(BoardCell cell) {
-        if (cell.getType() == null) {
-            return false;
-        }
-        return cell.getType().toUpperCase(Locale.ROOT).contains("TAX");
-    }
-
-    /** Thu nhập ~10%, thuế xa xỉ ~30% trên số dư hiện có. */
-    private void applyTaxLanding(Game game, GamePlayer player, BoardCell cell) {
-        long bal = player.getBalance() == null ? 0L : player.getBalance();
-        if (bal <= 0L) {
-            enqueueGameLog(
-                    game.getGameId(),
-                    displayNameForPlayer(player)
-                            + " vào ô thuế «"
-                            + (cell.getName() != null ? cell.getName() : "Thuế")
-                            + "» — số dư 0, không thu.");
-            return;
-        }
-        String n = cell.getName() != null ? cell.getName().toLowerCase(Locale.ROOT) : "";
-        int pct = (n.contains("luxury") || n.contains("xa xỉ") || n.contains("xa xi")) ? 30 : 10;
-        long due = bal * pct / 100L;
-        due = Math.min(due, bal);
-        if (due <= 0L) {
-            return;
-        }
-        player.setBalance(bal - due);
-        gamePlayerRepository.save(player);
-        enqueueGameLog(
-                game.getGameId(),
-                displayNameForPlayer(player)
-                        + " nộp thuế "
-                        + pct
-                        + "% tiền hiện có ("
-                        + formatMoneyLog(due)
-                        + ") tại «"
-                        + (cell.getName() != null ? cell.getName() : "Thuế")
-                        + "».");
-    }
-
-    private void clearSkillBuybackMarkForCell(GamePlayer player, int cellId) {
-        GamePlayer fresh = gamePlayerRepository.findById(player.getGamePlayerId()).orElse(player);
-        if (fresh.getSkillMarkedCellId() != null && fresh.getSkillMarkedCellId().equals(cellId)) {
-            fresh.setSkillMarkedCellId(null);
-            fresh.setSkillBuybackPercent(null);
-            gamePlayerRepository.save(fresh);
-        }
-    }
-
-    private void payRentAfterLanding(Game game, GamePlayer currentPlayer, GamePlayer owner, BoardCell cell, long rent) {
-        long payerBalance = currentPlayer.getBalance() == null ? 0L : currentPlayer.getBalance();
-        long ownerBalance = owner.getBalance() == null ? 0L : owner.getBalance();
-
-        if (rent <= payerBalance) {
-            currentPlayer.setBalance(payerBalance - rent);
-            owner.setBalance(ownerBalance + rent);
-            gamePlayerRepository.save(currentPlayer);
-            gamePlayerRepository.save(owner);
-            enqueueRentNotice(game, currentPlayer, owner, cell, rent);
-            return;
-        }
-
-        List<PlayerProperty> myAssets =
-                playerPropertyRepository.findByGame_GameIdAndOwnerPlayer_GamePlayerId(
-                        game.getGameId(), currentPlayer.getGamePlayerId());
-        if (!canLiquidateAny(myAssets)) {
-            assignEliminationOrderOnBankruptcy(game, currentPlayer);
-            currentPlayer.setBalance(0L);
-            owner.setBalance(ownerBalance + payerBalance);
-            currentPlayer.setIsBankrupt(true);
-            gamePlayerRepository.save(currentPlayer);
-            gamePlayerRepository.save(owner);
-            transferAllPropertiesFromTo(game.getGameId(), currentPlayer, owner);
-            enqueueRentNotice(game, currentPlayer, owner, cell, payerBalance);
-            advanceTurn(game);
-            return;
-        }
-
-        game.setDebtRentAmount(rent);
-        game.setDebtCreditorGamePlayerId(owner.getGamePlayerId());
-        game.setDebtCellId(cell.getCellId());
-        game.setTurnState("INSOLVENT");
-        gameRepository.save(game);
-    }
-
     private void applyLandingEffect(Game game, GamePlayer currentPlayer) {
         BoardCell cell = getCellByPosition(game, currentPlayer.getPosition());
         if (isGoToJailCell(cell)) {
@@ -1045,14 +618,6 @@ public class GamePlayService {
                     displayNameForPlayer(currentPlayer) + " vào tù (ô Đi tù).");
             sendToJail(game, currentPlayer);
             advanceTurn(game);
-            return;
-        }
-        if (isTaxCell(cell)) {
-            applyTaxLanding(game, currentPlayer, cell);
-            return;
-        }
-        if (isCommunityChestCell(cell)) {
-            grantChestRandomMoney(game, currentPlayer, "từ Community Chest");
             return;
         }
         Optional<PlayerProperty> ppOpt =
@@ -1075,28 +640,37 @@ public class GamePlayService {
 
         long rent = calculateRent(cell, property);
         long payerBalance = currentPlayer.getBalance() == null ? 0L : currentPlayer.getBalance();
-        long listPrice = getCellPrice(cell);
-        GamePlayer curFresh =
-                gamePlayerRepository.findById(currentPlayer.getGamePlayerId()).orElse(currentPlayer);
-        int buybackPct = 130;
-        if (curFresh.getSkillMarkedCellId() != null
-                && cell.getCellId() != null
-                && curFresh.getSkillMarkedCellId().equals(cell.getCellId())
-                && curFresh.getSkillBuybackPercent() != null) {
-            buybackPct = Math.max(1, Math.min(500, curFresh.getSkillBuybackPercent()));
-        }
-        long buybackPrice =
-                listPrice <= 0 ? Long.MAX_VALUE : (listPrice * buybackPct + 99L) / 100L;
+        long ownerBalance = owner.getBalance() == null ? 0L : owner.getBalance();
 
-        if (isPurchasableCell(cell) && listPrice > 0 && payerBalance >= buybackPrice) {
-            pendingOpponentLandByGameId.put(
-                    game.getGameId(),
-                    new OpponentLandPending(
-                            rent, buybackPrice, cell.getCellId(), owner.getGamePlayerId(), buybackPct));
+        if (rent <= payerBalance) {
+            currentPlayer.setBalance(payerBalance - rent);
+            owner.setBalance(ownerBalance + rent);
+            gamePlayerRepository.save(currentPlayer);
+            gamePlayerRepository.save(owner);
+            enqueueRentNotice(game, currentPlayer, owner, cell, rent);
             return;
         }
 
-        payRentAfterLanding(game, currentPlayer, owner, cell, rent);
+        List<PlayerProperty> myAssets =
+                playerPropertyRepository.findByGame_GameIdAndOwnerPlayer_GamePlayerId(
+                        game.getGameId(), currentPlayer.getGamePlayerId());
+        if (!canLiquidateAny(myAssets)) {
+            currentPlayer.setBalance(0L);
+            owner.setBalance(ownerBalance + payerBalance);
+            currentPlayer.setIsBankrupt(true);
+            gamePlayerRepository.save(currentPlayer);
+            gamePlayerRepository.save(owner);
+            transferAllPropertiesFromTo(game.getGameId(), currentPlayer, owner);
+            enqueueRentNotice(game, currentPlayer, owner, cell, payerBalance);
+            advanceTurn(game);
+            return;
+        }
+
+        game.setDebtRentAmount(rent);
+        game.setDebtCreditorGamePlayerId(owner.getGamePlayerId());
+        game.setDebtCellId(cell.getCellId());
+        game.setTurnState("INSOLVENT");
+        gameRepository.save(game);
     }
 
     private void enqueueRentNotice(
@@ -1231,14 +805,7 @@ public class GamePlayService {
 
     private void executeBotActionPhase(Game game, GamePlayer botPlayer) {
         Long gid = game.getGameId();
-        if (pendingOpponentLandByGameId.containsKey(gid)) {
-            resolveOpponentLandForBot(game, botPlayer);
-            return;
-        }
-        String difficulty = botDifficultyByGamePlayerId.get(botPlayer.getGamePlayerId());
-        if (difficulty == null) {
-            difficulty = botDifficultyByGame.getOrDefault(gid, "easy");
-        }
+        String difficulty = botDifficultyByGame.getOrDefault(gid, "easy");
         BoardCell cell = getCellByPosition(game, botPlayer.getPosition());
         Optional<PlayerProperty> existing =
                 playerPropertyRepository.findByGame_GameIdAndBoardCell_CellId(gid, cell.getCellId());
@@ -1419,7 +986,6 @@ public class GamePlayService {
     }
 
     private void declareBankruptcyForDebtInternal(Game game, GamePlayer debtor, GamePlayer creditor) {
-        assignEliminationOrderOnBankruptcy(game, debtor);
         long cash = debtor.getBalance() == null ? 0L : debtor.getBalance();
         creditor.setBalance((creditor.getBalance() == null ? 0L : creditor.getBalance()) + cash);
         debtor.setBalance(0L);
@@ -1487,99 +1053,6 @@ public class GamePlayService {
                         .orElseThrow();
         declareBankruptcyForDebtInternal(game, player, creditor);
         return actionResult(gameId, "Bạn đã phá sản — chuyển tài sản cho chủ nợ", accountId);
-    }
-
-    /**
-     * Đầu hàng: khi đang nợ và tới lượt — tương đương phá sản; còn không — bỏ hết tài sản, bị loại, có thể kết thúc ván.
-     */
-    @Transactional
-    public GameActionResponse surrenderGame(Long gameId, Long accountId) {
-        Game game = getGame(gameId);
-        if (game.getStatus() != GameStatus.PLAYING) {
-            throw new RuntimeException("Ván đã kết thúc");
-        }
-        UserProfile profile = getProfileByAccountId(accountId);
-        GamePlayer player =
-                gamePlayerRepository
-                        .findByGameIdAndUserProfileId(gameId, profile.getUserProfileId())
-                        .orElseThrow(() -> new RuntimeException("Bạn không tham gia ván này"));
-        if (Boolean.TRUE.equals(player.getIsBot())) {
-            throw new RuntimeException("Không áp dụng cho bot");
-        }
-        if (Boolean.TRUE.equals(player.getIsBankrupt())) {
-            throw new RuntimeException("Bạn đã bị loại");
-        }
-
-        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())
-                && Objects.equals(game.getCurrentPlayerOrder(), player.getTurnOrder())) {
-            return declareBankruptcyForDebt(gameId, accountId);
-        }
-
-        boolean isCurrent = Objects.equals(game.getCurrentPlayerOrder(), player.getTurnOrder());
-        if (isCurrent) {
-            pendingOpponentLandByGameId.remove(gameId);
-        }
-
-        assignEliminationOrderOnBankruptcy(game, player);
-        releaseAllPropertiesUnowned(gameId, player);
-        player.setBalance(0L);
-        player.setIsBankrupt(true);
-        gamePlayerRepository.save(player);
-        enqueueGameLog(
-                gameId,
-                displayNameForPlayer(player) + " đầu hàng — rời ván, tài sản trả về thị trường.");
-
-        game = getGame(gameId);
-        if (isCurrent) {
-            advanceTurn(game);
-        } else {
-            checkGameFinishedAfterElimination(getGame(gameId));
-        }
-        return actionResult(gameId, "Bạn đã đầu hàng.", accountId);
-    }
-
-    private void releaseAllPropertiesUnowned(Long gameId, GamePlayer owner) {
-        List<PlayerProperty> list =
-                playerPropertyRepository.findByGame_GameIdAndOwnerPlayer_GamePlayerId(
-                        gameId, owner.getGamePlayerId());
-        for (PlayerProperty pp : list) {
-            pp.setOwnerPlayer(null);
-            pp.setHouseLevel(0);
-            pp.setUpgradeSpentTotal(0L);
-            playerPropertyRepository.save(pp);
-        }
-    }
-
-    /** Khi người bị loại không phải người đang tới lượt — chỉ kiểm tra còn ≤1 người hoạt động. */
-    private void checkGameFinishedAfterElimination(Game game) {
-        game = getGame(game.getGameId());
-        List<GamePlayer> all = gamePlayerRepository.findByGameIdOrderByTurnOrderAsc(game.getGameId());
-        List<GamePlayer> active =
-                all.stream().filter(p -> !Boolean.TRUE.equals(p.getIsBankrupt())).toList();
-        if (active.size() <= 1) {
-            game.setStatus(GameStatus.FINISHED);
-            game.setTurnState("END_TURN");
-            if (!active.isEmpty()) {
-                game.setWinnerPlayerId(active.get(0).getGamePlayerId());
-            }
-            game.setEndedAt(LocalDateTime.now());
-            game.setHumanTurnStartedAt(null);
-            gameRepository.save(game);
-            releaseRoomAfterGameFinished(game.getGameId());
-            awardEndMatchCoins(game.getGameId());
-        }
-    }
-
-    /** Phòng quay về chờ để «Chơi lại» không bị redirect vào bàn cũ (activeGameId + IN_GAME). */
-    private void releaseRoomAfterGameFinished(Long gameId) {
-        roomRepository
-                .findByActiveGameId(gameId)
-                .ifPresent(
-                        room -> {
-                            room.setStatus(RoomStatus.WAITING);
-                            room.setActiveGameId(null);
-                            roomRepository.save(room);
-                        });
     }
 
     private GameStateResponse.DebtSituationDto buildDebtSituation(Game game, GamePlayer current) {
@@ -1672,8 +1145,6 @@ public class GamePlayService {
             game.setEndedAt(LocalDateTime.now());
             game.setHumanTurnStartedAt(null);
             gameRepository.save(game);
-            releaseRoomAfterGameFinished(game.getGameId());
-            awardEndMatchCoins(game.getGameId());
             return;
         }
 
@@ -1938,31 +1409,8 @@ public class GamePlayService {
         }
     }
 
-    private Integer resolveMyPlayerTurnOrder(Long accountId, List<GamePlayer> playersInGame) {
-        if (accountId == null) {
-            return null;
-        }
-        try {
-            UserProfile profile = getProfileByAccountId(accountId);
-            for (GamePlayer p : playersInGame) {
-                if (Objects.equals(p.getUserProfileId(), profile.getUserProfileId())) {
-                    return p.getTurnOrder();
-                }
-            }
-        } catch (RuntimeException ignored) {
-            return null;
-        }
-        return null;
-    }
-
     private String displayNameForPlayer(GamePlayer player) {
         if (Boolean.TRUE.equals(player.getIsBot())) {
-            if (player.getCharacterId() != null) {
-                return heroRepository
-                        .findById(player.getCharacterId())
-                        .map(h -> "Bot · " + h.getName())
-                        .orElseGet(() -> "Bot " + (player.getTurnOrder() != null ? player.getTurnOrder() : ""));
-            }
             return "Bot " + (player.getTurnOrder() != null ? player.getTurnOrder() : "");
         }
         if (player.getUserProfileId() != null) {
@@ -1985,12 +1433,13 @@ public class GamePlayService {
             if (profile != null) {
                 avatarUrl = profile.getAvatarUrl();
             }
-        }
-        if (player.getCharacterId() != null) {
-            Optional<Hero> ho = heroRepository.findById(player.getCharacterId());
-            if (ho.isPresent()) {
-                heroName = ho.get().getName();
-                heroImageUrl = null;
+            if (player.getCharacterId() != null) {
+                Optional<Hero> ho = heroRepository.findById(player.getCharacterId());
+                if (ho.isPresent()) {
+                    Hero h = ho.get();
+                    heroName = h.getName();
+                    heroImageUrl = null;
+                }
             }
         }
 

@@ -198,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const response = await fetch("/api/social/friends/request", {
                 method: "POST",
                 headers: getAuthHeaders(true),
-                body: JSON.stringify({ username: friendUsername })
+                body: JSON.stringify({ friendUsername })
             });
 
             if (handleUnauthorized(response)) {

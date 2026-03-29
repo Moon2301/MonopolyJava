@@ -55,8 +55,4 @@ public class Game {
 
     @Column(name = "debt_cell_id")
     private Integer debtCellId;
-
-    /** Tăng mỗi khi có người bị loại — gán {@link GamePlayer#getEliminationOrder()}. */
-    @Column(name = "elimination_sequence")
-    private Integer eliminationSequence;
 }

@@ -1,14 +1,7 @@
 package com.game.monopoly.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.game.monopoly.dto.AccountSeedJson;
 import com.game.monopoly.dto.HeroSeedJson;
-import com.game.monopoly.model.enums.AccountStatus;
-import com.game.monopoly.model.enums.UserRole;
-import com.game.monopoly.model.metaData.Account;
-import com.game.monopoly.model.metaData.UserProfile;
-import com.game.monopoly.repository.AccountRepository;
-import com.game.monopoly.repository.UserProfileRepository;
 import com.game.monopoly.model.metaData.CharacterSkill;
 import com.game.monopoly.model.metaData.CharacterSkillId;
 import com.game.monopoly.model.metaData.Hero;
@@ -21,7 +14,6 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,17 +25,11 @@ public class SeedDataConfig {
     private final HeroRepository heroRepository;
     private final SkillRepository skillRepository;
     private final CharacterSkillRepository characterSkillRepository;
-    private final AccountRepository accountRepository;
-    private final UserProfileRepository userProfileRepository;
-    private final PasswordEncoder passwordEncoder;
     private final ObjectMapper objectMapper;
 
     @Bean
     CommandLineRunner seedHeroData() {
-        return args -> {
-            seedIfMissing();
-            seedAccountsIfMissing();
-        };
+        return args -> seedIfMissing();
     }
 
     protected void seedIfMissing() {
@@ -105,8 +91,8 @@ public class SeedDataConfig {
                 "ACTIVE",
                 "MARK_AND_BUYBACK",
                 7,
-                100,
-                "Đánh dấu đất đối thủ — mua lại đúng 100% giá niêm yết khi vào ô (thay vì 130%)"
+                70,
+                "Đánh dấu đất đối thủ để mua lại với 70% giá gốc"
         );
         upsertSkill(
                 "Quỹ Khởi Đầu",
@@ -186,73 +172,5 @@ public class SeedDataConfig {
         }
         CharacterSkill characterSkill = new CharacterSkill(hero, skill, unlockLevel);
         characterSkillRepository.save(characterSkill);
-    }
-
-    /**
-     * Seed 4 tài khoản demo (1 admin + 3 user) từ {@code seed/accounts-seed.json}.
-     * Chỉ tạo khi email chưa tồn tại.
-     */
-    protected void seedAccountsIfMissing() {
-        AccountSeedJson[] rows = loadAccountSeedRows();
-        for (AccountSeedJson row : rows) {
-            upsertAccountSeed(row);
-        }
-    }
-
-    private AccountSeedJson[] loadAccountSeedRows() {
-        ClassPathResource res = new ClassPathResource("seed/accounts-seed.json");
-        if (!res.exists()) {
-            return new AccountSeedJson[0];
-        }
-        try (InputStream in = res.getInputStream()) {
-            return objectMapper.readValue(in, AccountSeedJson[].class);
-        } catch (IOException e) {
-            throw new IllegalStateException("Không đọc được seed/accounts-seed.json", e);
-        }
-    }
-
-    private void upsertAccountSeed(AccountSeedJson row) {
-        if (row.getEmail() == null || row.getEmail().isBlank()) {
-            throw new IllegalArgumentException("accounts-seed.json: cần email");
-        }
-        if (row.getUsername() == null || row.getUsername().isBlank()) {
-            throw new IllegalArgumentException("accounts-seed.json: cần username");
-        }
-        if (row.getPassword() == null || row.getPassword().isEmpty()) {
-            throw new IllegalArgumentException("accounts-seed.json: cần password");
-        }
-        if (accountRepository.existsByEmail(row.getEmail().trim())) {
-            return;
-        }
-        if (userProfileRepository.existsByUsername(row.getUsername().trim())) {
-            return;
-        }
-
-        UserRole role;
-        try {
-            role = UserRole.valueOf(row.getRole() != null ? row.getRole().trim().toUpperCase() : "USER");
-        } catch (IllegalArgumentException e) {
-            role = UserRole.USER;
-        }
-
-        Account account = new Account();
-        account.setEmail(row.getEmail().trim());
-        account.setPasswordHash(passwordEncoder.encode(row.getPassword()));
-        account.setRole(role);
-        account.setStatus(AccountStatus.ACTIVE);
-        account = accountRepository.save(account);
-
-        UserProfile profile = new UserProfile();
-        profile.setAccount(account);
-        profile.setUsername(row.getUsername().trim());
-        profile.setGold(row.getGold() != null ? row.getGold() : 1000L);
-        profile.setDiamonds(row.getDiamonds() != null ? row.getDiamonds() : 10L);
-
-        heroRepository
-                .findFirstByDefaultUnlockedTrueOrderByCharacterIdAsc()
-                .map(Hero::getCharacterId)
-                .ifPresent(profile::setCurrentHeroId);
-
-        userProfileRepository.save(profile);
     }
 }
