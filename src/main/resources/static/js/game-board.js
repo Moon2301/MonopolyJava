@@ -327,7 +327,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: 0,
             avatarUrl: "/images/avatar-default.png",
             heroImageUrl: null,
-            heroName: null
+            heroName: null,
+            isBot: false
         },
         {
             id: 2,
@@ -338,7 +339,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: 7,
             avatarUrl: "/images/avatar-default.png",
             heroImageUrl: null,
-            heroName: null
+            heroName: null,
+            isBot: false
         },
         {
             id: 3,
@@ -349,7 +351,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: 18,
             avatarUrl: "/images/avatar-default.png",
             heroImageUrl: null,
-            heroName: null
+            heroName: null,
+            isBot: false
         },
         {
             id: 4,
@@ -360,7 +363,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             position: 28,
             avatarUrl: "/images/avatar-default.png",
             heroImageUrl: null,
-            heroName: null
+            heroName: null,
+            isBot: false
         }
     ];
     const isBotMode = urlParams.get("vsBot") === "1";
@@ -378,7 +382,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 position: 0,
                 avatarUrl: "/images/avatar-default.png",
                 heroImageUrl: null,
-                heroName: null
+                heroName: null,
+                isBot: false
             },
             {
                 id: 2,
@@ -389,15 +394,13 @@ document.addEventListener("DOMContentLoaded", async () => {
                 position: 7,
                 avatarUrl: null,
                 heroImageUrl: "/images/heroes/bot.png",
-                heroName: null
+                heroName: null,
+                isBot: true
             }
         ]
         : defaultPlayers;
 
-    const chatMessages = [
-        { user: "Player1", message: "hello" },
-        { user: "Player2", message: "let's start" }
-    ];
+    const chatMessages = [];
 
     let activePlayerIndex = 0;
 
@@ -660,11 +663,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const buildPlayerCards = () => {
-        players.forEach((player, index) => {
+        for (let index = 0; index < 4; index += 1) {
             const card = document.getElementById(`playerCard${index + 1}`);
-            if (!card) {
-                return;
+            if (!card) continue;
+            if (index >= players.length) {
+                card.innerHTML = "";
+                card.classList.remove("player-info--active-turn");
+                card.style.removeProperty("--turn-ring");
+                card.style.visibility = "hidden";
+                continue;
             }
+            card.style.visibility = "";
+            const player = players[index];
             const src = portraitForPlayer(player);
             let chipInner;
             if (src) {
@@ -686,7 +696,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     <span>$${player.money.toLocaleString("en-US")}</span>
                 </div>
             `;
-        });
+        }
 
         if (window.HeroSystem) {
             window.requestAnimationFrame(() => {
@@ -700,13 +710,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const renderChat = () => {
-        chatMessagesElement.innerHTML = chatMessages.map((item) => `
-            <article class="chat-bubble">
-                <strong>${item.user}</strong>
-                <p>${item.message}</p>
-            </article>
-        `).join("");
+        if (!chatMessagesElement) return;
+        chatMessagesElement.innerHTML = chatMessages
+            .map((item) => {
+                const sys = item.system ? " chat-bubble--system" : "";
+                return `
+            <article class="chat-bubble${sys}">
+                <strong>${escapeHtml(item.user)}</strong>
+                <p>${escapeHtml(item.message)}</p>
+            </article>`;
+            })
+            .join("");
         chatMessagesElement.scrollTop = chatMessagesElement.scrollHeight;
+    };
+
+    const appendRentNoticesToChat = (state) => {
+        const list = state?.rentNotices;
+        if (!list || !list.length) return;
+        for (const n of list) {
+            const payer = n.payerName || "?";
+            const owner = n.ownerName || "?";
+            const cell = n.cellName || "ô";
+            const amt = n.amountPaid ?? 0;
+            const msg = `${payer} đã tiêu ${formatMoney(amt)} tiền ở ${cell} (trả cho ${owner}).`;
+            chatMessages.push({ user: "Hệ thống", message: msg, system: true });
+        }
+        renderChat();
     };
 
     /** Tọa độ layout (px) từ góc trên-trái của ancestor (bỏ qua transform màn hình). */
@@ -975,7 +1004,8 @@ document.addEventListener("DOMContentLoaded", async () => {
                 position: p.position || 0,
                 avatarUrl: p.avatarUrl || null,
                 heroImageUrl: p.heroImageUrl || null,
-                heroName: p.heroName || null
+                heroName: p.heroName || null,
+                isBot: Boolean(p.isBot)
             });
         });
 
@@ -1085,6 +1115,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         updateTurnBanner(state);
         refreshCellInfoPanel(state);
+        appendRentNoticesToChat(state);
     }
 
     const syncFromState = (state, opts = {}) => {
