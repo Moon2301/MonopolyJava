@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/game-board.css">
+    <link rel="stylesheet" href="/character/character.css">
 </head>
 <body>
 <div id="yourTurnToast" class="your-turn-toast" role="status" aria-live="polite" aria-hidden="true" hidden>
@@ -32,6 +33,17 @@
         <div class="turn-top-line turn-top-timer" aria-live="polite" hidden>
             <span class="turn-top-eyebrow">Thời gian lượt</span>
             <strong id="turnTimerLabel" class="turn-timer turn-timer--banner"></strong>
+        </div>
+    </div>
+</div>
+<div id="debtCrisisModal" class="debt-crisis-dock" hidden aria-hidden="true" role="region" aria-live="polite" aria-labelledby="debtCrisisTitle">
+    <div class="debt-crisis-panel glass-panel">
+        <h2 id="debtCrisisTitle" class="debt-crisis-title">Không đủ tiền trả thuê</h2>
+        <p id="debtCrisisSummary" class="debt-crisis-summary"></p>
+        <p class="debt-crisis-hint">Chọn bán nhà / thế chấp ô hoặc phá sản (nhường tài sản cho chủ nợ).</p>
+        <ul id="debtAssetList" class="debt-asset-list"></ul>
+        <div class="debt-crisis-actions">
+            <button type="button" id="debtBankruptButton" class="action-button debt-btn-bankrupt">Phá sản (thua)</button>
         </div>
     </div>
 </div>
@@ -83,8 +95,9 @@
             <strong id="currentCellName" class="cell-info-name">-</strong>
             <div class="cell-info-sections cell-info-sections--panel">
                 <div class="cell-info-section">
-                    <span class="cell-info-section__label">Giá / thuế khi vào ô</span>
-                    <p class="cell-info-section__value" id="currentCellPriceTax">-</p>
+                    <span class="cell-info-section__label">Thuê &amp; giá</span>
+                    <p class="cell-info-section__value cell-info-rent" id="currentCellRent">-</p>
+                    <p class="cell-info-section__value cell-info-price-line" id="currentCellPriceTax">-</p>
                 </div>
                 <div class="cell-info-section">
                     <span class="cell-info-section__label">Cấp &amp; chi phí lên cấp kế</span>

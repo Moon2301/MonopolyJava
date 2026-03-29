@@ -310,10 +310,16 @@ public class RoomService {
 
         List<RoomPlayer> roomPlayers = roomPlayerRepository.findByRoom_RoomIdOrderBySlotIndexAsc(roomId);
         if (roomPlayers.size() < 2) {
-            throw new RuntimeException("At least two players are required");
+            throw new RuntimeException("Cần ít nhất 2 người chơi để bắt đầu");
         }
-        if (roomPlayers.stream().anyMatch(player -> !Boolean.TRUE.equals(player.getIsReady()))) {
-            throw new RuntimeException("All players must be ready");
+        boolean guestNotReady =
+                roomPlayers.stream()
+                        .anyMatch(
+                                player ->
+                                        !Boolean.TRUE.equals(player.getIsHost())
+                                                && !Boolean.TRUE.equals(player.getIsReady()));
+        if (guestNotReady) {
+            throw new RuntimeException("Tất cả người chơi (trừ chủ phòng) phải bấm sẵn sàng");
         }
 
         room.setStatus(RoomStatus.STARTING);
@@ -328,10 +334,11 @@ public class RoomService {
                 .maxPlayers(room.getMaxPlayers())
                 .currentTurn(1)
                 .currentPlayerOrder(1)
-                .turnState("ROLL_DICE")
+                .turnState("WAIT_ROLL")
                 .version(1)
                 .createdAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now())
+                .humanTurnStartedAt(LocalDateTime.now())
                 .build();
         game = gameRepository.save(game);
 

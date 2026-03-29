@@ -1,0 +1,13 @@
+package com.game.monopoly.dto;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
+public class SkillActivateRequest {
+    /** {@link com.game.monopoly.model.metaData.Skill#getSkillId()} */
+    private Integer skillId;
+}

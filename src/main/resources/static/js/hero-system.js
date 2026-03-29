@@ -149,192 +149,52 @@ const HeroSystem = (() => {
     <circle cx="36" cy="9"  r="2" fill="#1D9E75"/>
     <circle cx="44" cy="12" r="2" fill="#185FA5"/>
   </g>
-</svg>`,
-
-        /** ─── 8 hero seed MonopolyJava (tên DB → _normalize) ─── */
-        "phu loc tho": (id) => `
-<svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="36" cy="83" rx="13" ry="3.5" fill="#00000018" id="shadow-${id}"/>
-  <g id="body-${id}">
-    <path d="M18 42 Q12 74 22 79 L36 76 L50 79 Q60 74 54 42Z" fill="#B71C1C"/>
-    <rect x="22" y="38" width="28" height="16" rx="6" fill="#E53935"/>
-    <circle cx="36" cy="45" r="7" fill="#FFD54F" stroke="#F9A825" stroke-width="0.6"/>
-    <text x="32" y="48" font-size="9" fill="#5D4037" font-weight="700" font-family="sans-serif">%</text>
-    <ellipse cx="36" cy="30" rx="11" ry="8" fill="#ECEFF1"/>
-    <circle cx="36" cy="22" r="12" fill="#F5D5B8" stroke="#D7CCC8" stroke-width="0.5"/>
-    <path d="M26 24 Q36 18 46 24" stroke="#CFD8DC" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <circle cx="31" cy="21" r="1.8" fill="#37474F"/>
-    <circle cx="41" cy="21" r="1.8" fill="#37474F"/>
-    <path d="M30 28 Q36 31 42 28" stroke="#8D6E63" stroke-width="1" fill="none"/>
-    <ellipse cx="36" cy="10" rx="12" ry="5" fill="#C62828"/>
-    <rect x="10" y="42" width="13" height="7" rx="3.5" fill="#F5D5B8"/>
-    <rect x="49" y="42" width="13" height="7" rx="3.5" fill="#F5D5B8"/>
-    <ellipse cx="14" cy="58" rx="7" ry="8" fill="#FFD54F" stroke="#F9A825" stroke-width="0.5"/>
-    <rect x="24" y="62" width="10" height="14" rx="4" fill="#B71C1C"/>
-    <rect x="38" y="62" width="10" height="14" rx="4" fill="#B71C1C"/>
-  </g>
-</svg>`,
-
-        "than xuc xac": (id) => `
-<svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="36" cy="83" rx="13" ry="3.5" fill="#00000018" id="shadow-${id}"/>
-  <g id="body-${id}">
-    <rect x="20" y="44" width="32" height="28" rx="8" fill="#F5F5F0" stroke="#BDBDBD" stroke-width="0.8"/>
-    <circle cx="28" cy="54" r="2" fill="#424242"/>
-    <circle cx="36" cy="54" r="2" fill="#424242"/>
-    <circle cx="44" cy="54" r="2" fill="#424242"/>
-    <circle cx="32" cy="62" r="2" fill="#424242"/>
-    <circle cx="40" cy="62" r="2" fill="#424242"/>
-    <rect x="26" y="8" width="20" height="18" rx="5" fill="#EDE7F6" stroke="#9575CD" stroke-width="0.8"/>
-    <circle cx="32" cy="16" r="1.8" fill="#5E35B1"/>
-    <circle cx="40" cy="16" r="1.8" fill="#5E35B1"/>
-    <circle cx="36" cy="20" r="1.8" fill="#5E35B1"/>
-    <path d="M24 6 L36 2 L48 6 L44 10 L28 10Z" fill="#7E57C2"/>
-    <rect x="8" y="50" width="12" height="8" rx="3" fill="#BDBDBD"/>
-    <rect x="52" y="50" width="12" height="8" rx="3" fill="#BDBDBD"/>
-    <rect x="24" y="70" width="10" height="12" rx="4" fill="#78909C"/>
-    <rect x="38" y="70" width="10" height="12" rx="4" fill="#78909C"/>
-  </g>
-</svg>`,
-
-        "kien truc su": (id) => `
-<svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="36" cy="83" rx="13" ry="3.5" fill="#00000018" id="shadow-${id}"/>
-  <g id="body-${id}">
-    <path d="M22 18 L36 8 L50 18 L46 22 L26 22Z" fill="#FFC107"/>
-    <rect x="24" y="20" width="24" height="5" rx="2" fill="#FFA000"/>
-    <circle cx="36" cy="32" r="12" fill="#FFCC80" stroke="#D7CCC8" stroke-width="0.5"/>
-    <circle cx="31" cy="30" r="1.6" fill="#37474F"/>
-    <circle cx="41" cy="30" r="1.6" fill="#37474F"/>
-    <path d="M30 36 Q36 39 42 36" stroke="#8D6E63" stroke-width="1" fill="none"/>
-    <rect x="22" y="42" width="28" height="22" rx="6" fill="#1565C0"/>
-    <rect x="26" y="46" width="20" height="6" rx="2" fill="#42A5F5" opacity="0.5"/>
-    <rect x="6" y="46" width="14" height="10" rx="2" fill="#E3F2FD" stroke="#90CAF9"/>
-    <line x1="8" y1="50" x2="18" y2="50" stroke="#1976D2" stroke-width="0.8"/>
-    <line x1="8" y1="53" x2="16" y2="53" stroke="#1976D2" stroke-width="0.8"/>
-    <rect x="54" y="44" width="4" height="18" rx="1" fill="#8D6E63"/>
-    <line x1="56" y1="44" x2="56" y2="62" stroke="#5D4037" stroke-width="0.5"/>
-    <rect x="24" y="62" width="10" height="14" rx="4" fill="#0D47A1"/>
-    <rect x="38" y="62" width="10" height="14" rx="4" fill="#0D47A1"/>
-  </g>
-</svg>`,
-
-        "bong ma toc do": (id) => `
-<svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="36" cy="83" rx="13" ry="3.5" fill="#00000018" id="shadow-${id}"/>
-  <g id="body-${id}">
-    <g opacity="0.45">
-      <path d="M22 44 Q18 70 28 76 L36 73 L44 76 Q54 70 50 44Z" fill="#26C6DA"/>
-      <circle cx="30" cy="38" r="10" fill="#4DD0E1"/>
-    </g>
-    <path d="M20 42 Q14 72 24 78 L36 75 L48 78 Q58 72 52 42Z" fill="#00ACC1" opacity="0.55"/>
-    <path d="M18 40 Q12 70 22 76 L36 73 L50 76 Q60 70 54 40Z" fill="#00BCD4" opacity="0.85"/>
-    <circle cx="36" cy="26" r="13" fill="#B2EBF2" stroke="#4DD0E1" stroke-width="0.6" opacity="0.9"/>
-    <ellipse cx="30" cy="24" rx="3" ry="4" fill="#E0F7FA"/>
-    <ellipse cx="42" cy="24" rx="3" ry="4" fill="#E0F7FA"/>
-    <path d="M8 32 L4 28 M10 28 L6 24 M12 36 L8 32" stroke="#4DD0E1" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
-    <path d="M64 32 L68 28 M62 28 L66 24 M60 36 L64 32" stroke="#4DD0E1" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
-    <rect x="10" y="44" width="14" height="8" rx="3" fill="#B2EBF2" opacity="0.7"/>
-    <rect x="48" y="44" width="14" height="8" rx="3" fill="#B2EBF2" opacity="0.7"/>
-    <rect x="24" y="62" width="10" height="14" rx="4" fill="#00838F" opacity="0.75"/>
-    <rect x="38" y="62" width="10" height="14" rx="4" fill="#00838F" opacity="0.75"/>
-  </g>
-</svg>`,
-
-        "tham tu den": (id) => `
-<svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="36" cy="83" rx="13" ry="3.5" fill="#00000018" id="shadow-${id}"/>
-  <g id="body-${id}">
-    <ellipse cx="36" cy="14" rx="18" ry="7" fill="#263238"/>
-    <rect x="20" y="14" width="32" height="6" rx="2" fill="#37474F"/>
-    <circle cx="36" cy="30" r="12" fill="#FFCC80" stroke="#D7CCC8" stroke-width="0.5"/>
-    <path d="M40 22 L44 30" stroke="#BF360C" stroke-width="1.2" stroke-linecap="round"/>
-    <circle cx="31" cy="28" r="1.5" fill="#212121"/>
-    <circle cx="41" cy="28" r="1.5" fill="#212121"/>
-    <path d="M30 34 Q36 37 42 34" stroke="#6D4C41" stroke-width="1" fill="none"/>
-    <path d="M16 42 Q12 68 20 76 L36 72 L52 76 Q60 68 56 42Z" fill="#37474F"/>
-    <rect x="24" y="40" width="24" height="8" rx="2" fill="#546E7A"/>
-    <circle cx="52" cy="48" r="9" fill="none" stroke="#B0BEC5" stroke-width="2"/>
-    <line x1="58" y1="54" x2="64" y2="60" stroke="#B0BEC5" stroke-width="2" stroke-linecap="round"/>
-    <rect x="8" y="50" width="10" height="10" rx="2" fill="#ECEFF1" stroke="#BDBDBD"/>
-    <circle cx="11" cy="53" r="1" fill="#212121"/>
-    <circle cx="15" cy="53" r="1" fill="#212121"/>
-    <circle cx="13" cy="56" r="1" fill="#212121"/>
-    <rect x="24" y="64" width="10" height="14" rx="4" fill="#263238"/>
-    <rect x="38" y="64" width="10" height="14" rx="4" fill="#263238"/>
-  </g>
-</svg>`,
-
-        "hu vo su": (id) => `
-<svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="36" cy="83" rx="13" ry="3.5" fill="#00000018" id="shadow-${id}"/>
-  <g id="body-${id}">
-    <circle cx="20" cy="24" r="1.2" fill="#E1BEE7" opacity="0.9"/>
-    <circle cx="52" cy="20" r="1" fill="#CE93D8"/>
-    <circle cx="48" cy="32" r="0.8" fill="#F3E5F5"/>
-    <path d="M14 40 Q8 72 18 78 L36 74 L54 78 Q64 72 58 40Z" fill="#4A148C" opacity="0.95"/>
-    <path d="M20 38 Q16 65 24 72 L36 69 L48 72 Q56 65 52 38Z" fill="#6A1B9A" opacity="0.85"/>
-    <rect x="24" y="36" width="24" height="14" rx="5" fill="#7B1FA2"/>
-    <circle cx="36" cy="22" r="11" fill="#CE93D8" stroke="#4A148C" stroke-width="0.5"/>
-    <ellipse cx="31" cy="20" rx="2" ry="3" fill="#FFEE58"/>
-    <ellipse cx="41" cy="20" rx="2" ry="3" fill="#FFEE58"/>
-    <circle cx="50" cy="52" r="8" fill="#1A1A2E" stroke="#311B92" stroke-width="1"/>
-    <circle cx="50" cy="52" r="4" fill="#0D0221"/>
-    <rect x="8" y="44" width="14" height="8" rx="3" fill="#BA68C8"/>
-    <rect x="24" y="58" width="10" height="16" rx="4" fill="#38006B"/>
-    <rect x="38" y="58" width="10" height="16" rx="4" fill="#38006B"/>
-  </g>
-</svg>`,
-
-        "nu hoang hop dong": (id) => `
-<svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="36" cy="83" rx="13" ry="3.5" fill="#00000018" id="shadow-${id}"/>
-  <g id="body-${id}">
-    <path d="M16 42 Q10 74 20 80 L36 77 L52 80 Q62 74 56 42Z" fill="#212121"/>
-    <path d="M22 42 Q18 68 26 74 L36 72 L46 74 Q54 68 50 42Z" fill="#424242"/>
-    <rect x="22" y="36" width="28" height="16" rx="6" fill="#212121"/>
-    <rect x="24" y="50" width="24" height="3" fill="#FFD54F"/>
-    <rect x="9" y="40" width="14" height="7" rx="3" fill="#FFCC80"/>
-    <rect x="49" y="40" width="14" height="7" rx="3" fill="#FFCC80"/>
-    <circle cx="36" cy="22" r="12" fill="#FFCC80" stroke="#D7CCC8" stroke-width="0.5"/>
-    <path d="M30 20 Q33 17 36 20 Q39 17 42 20" stroke="#37474F" stroke-width="1.2" fill="none"/>
-    <circle cx="32" cy="21" r="1.3" fill="#37474F"/>
-    <circle cx="40" cy="21" r="1.3" fill="#37474F"/>
-    <path d="M30 28 Q36 32 42 28" stroke="#C2185B" stroke-width="1" fill="none"/>
-    <polygon points="22,14 26,6 30,12 36,4 42,12 46,6 50,14" fill="#FFD54F" stroke="#F9A825" stroke-width="0.5"/>
-    <rect x="22" y="12" width="28" height="5" rx="2" fill="#FFC107"/>
-    <rect x="44" y="44" width="3" height="14" rx="1" fill="#FFD54F"/>
-    <path d="M46 42 Q50 40 52 44" stroke="#FFD54F" stroke-width="2" fill="none"/>
-    <rect x="12" y="48" width="14" height="18" rx="2" fill="#FFF8E1" stroke="#FFD54F" stroke-width="0.6"/>
-    <path d="M15 54 Q20 52 25 56 Q18 58 15 54" stroke="#5D4037" stroke-width="0.8" fill="none"/>
-    <line x1="15" y1="60" x2="28" y2="60" stroke="#D7CCC8" stroke-width="0.6"/>
-    <rect x="26" y="60" width="8" height="14" rx="3" fill="#212121"/>
-    <rect x="38" y="60" width="8" height="14" rx="3" fill="#212121"/>
-  </g>
-</svg>`,
-
-        "nha tai tro khoi dau": (id) => `
-<svg width="72" height="88" viewBox="0 0 72 88" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="36" cy="83" rx="13" ry="3.5" fill="#00000018" id="shadow-${id}"/>
-  <g id="body-${id}">
-    <rect x="21" y="42" width="30" height="26" rx="7" fill="#2E7D32"/>
-    <rect x="26" y="46" width="20" height="4" rx="2" fill="#A5D6A7" opacity="0.6"/>
-    <circle cx="36" cy="30" r="14" fill="#FFCC80" stroke="#D7CCC8" stroke-width="0.5"/>
-    <circle cx="31" cy="28" r="2" fill="#37474F"/>
-    <circle cx="41" cy="28" r="2" fill="#37474F"/>
-    <path d="M28 34 Q36 40 44 34" stroke="#6D4C41" stroke-width="1.2" fill="none" stroke-linecap="round"/>
-    <rect x="10" y="46" width="12" height="7" rx="3" fill="#FFCC80"/>
-    <rect x="50" y="46" width="12" height="7" rx="3" fill="#FFCC80"/>
-    <rect x="6" y="54" width="14" height="12" rx="3" fill="#FFD54F" stroke="#F9A825"/>
-    <rect x="9" y="57" width="8" height="6" rx="1" fill="#FFF59D"/>
-    <text x="9" y="64" font-size="8" fill="#33691E" font-weight="700" font-family="sans-serif">+</text>
-    <circle cx="54" cy="58" r="8" fill="#43A047" stroke="#1B5E20" stroke-width="0.5"/>
-    <text x="51" y="61" font-size="9" fill="#E8F5E9" font-weight="800" font-family="sans-serif">★</text>
-    <rect x="24" y="66" width="10" height="14" rx="4" fill="#1B5E20"/>
-    <rect x="38" y="66" width="10" height="14" rx="4" fill="#1B5E20"/>
-  </g>
 </svg>`
     };
+
+    /** SVG tĩnh trong `/character/*.svg` — placeholder `__UID__` thay bằng id instance (animation). */
+    const CHARACTER_FILE_BY_KEY = {
+        "phu loc tho": "phu-loc-tho.svg",
+        "than xuc xac": "than-xuc-xac.svg",
+        "kien truc su": "kien-truc-su.svg",
+        "bong ma toc do": "bong-ma-toc-do.svg",
+        "tham tu den": "tham-tu-den.svg",
+        "hu vo su": "hu-vo-su.svg",
+        "nu hoang hop dong": "nu-hoang-hop-dong.svg",
+        "nha tai tro khoi dau": "nha-tai-tro-khoi-dau.svg"
+    };
+
+    const _characterSvgCache = new Map();
+    let _characterPreloadPromise = null;
+
+    function preloadCharacterSvgs() {
+        if (_characterPreloadPromise) {
+            return _characterPreloadPromise;
+        }
+        const files = [...new Set(Object.values(CHARACTER_FILE_BY_KEY))];
+        _characterPreloadPromise = Promise.all(
+            files.map((file) =>
+                fetch(`/character/${file}`, { cache: "force-cache" })
+                    .then((r) => (r.ok ? r.text() : null))
+                    .then((text) => {
+                        if (text) {
+                            _characterSvgCache.set(file, text);
+                        }
+                    })
+                    .catch(() => {})
+            )
+        );
+        return _characterPreloadPromise;
+    }
+
+    function _svgFromCharacterFile(heroName, uid) {
+        const tkey = _templateKeyForName(heroName);
+        const file = CHARACTER_FILE_BY_KEY[tkey];
+        if (!file || !_characterSvgCache.has(file)) {
+            return null;
+        }
+        return _characterSvgCache.get(file).replace(/__UID__/g, uid);
+    }
 
     /** Alias tùy chọn (để trỏ tên cũ / demo → template khác). */
     const SVG_ALIASES = {};
@@ -400,6 +260,10 @@ const HeroSystem = (() => {
     }
 
     function _getSVG(heroName, uid) {
+        const fromFile = _svgFromCharacterFile(heroName, uid);
+        if (fromFile) {
+            return fromFile;
+        }
         const tkey = _templateKeyForName(heroName);
         const fn = SVG_TEMPLATES[tkey];
         return fn ? fn(uid) : _fallbackSVG(heroName, uid);
@@ -678,8 +542,10 @@ const HeroSystem = (() => {
         isMoving,
         getTokenColor,
         heroIdOf,
-        normalizeName: _normalize
+        normalizeName: _normalize,
+        preloadCharacterSvgs
     };
 })();
 
 window.HeroSystem = HeroSystem;
+window.HeroSystem.preloadCharacterSvgs();

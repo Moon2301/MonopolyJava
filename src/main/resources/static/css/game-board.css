@@ -246,6 +246,19 @@ body {
     line-height: 1.3;
 }
 
+.cell-info-panel .cell-info-rent {
+    font-weight: 800;
+    color: #5c3d2e;
+    margin: 0 0 2px;
+}
+
+.cell-info-panel .cell-info-price-line {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-soft);
+}
+
 .panel-header h1,
 .panel-header h2 {
     margin: 0;
@@ -763,13 +776,108 @@ body {
 
 .player-info {
     position: absolute;
-    width: clamp(160px, 22vw, 210px);
+    width: clamp(200px, 28vw, 280px);
     border-radius: 24px;
     padding: 12px 14px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    justify-content: space-between;
     gap: 10px;
     z-index: 3;
+}
+
+.player-card-main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.player-skills {
+    flex-shrink: 0;
+    width: min(118px, 38%);
+    font-size: 0.65rem;
+    line-height: 1.3;
+    color: var(--text-soft);
+    border-left: 1px solid rgba(91, 58, 52, 0.18);
+    padding-left: 8px;
+    max-height: 72px;
+    overflow-y: auto;
+}
+
+.player-skill-line {
+    margin-bottom: 6px;
+}
+
+.player-skill-line:last-child {
+    margin-bottom: 0;
+}
+
+.player-skill-name {
+    font-weight: 700;
+    color: var(--text-dark);
+    font-size: 0.68rem;
+}
+
+.player-skill-status {
+    color: var(--text-soft);
+    font-size: 0.62rem;
+}
+
+.player-skill-empty {
+    opacity: 0.45;
+    font-size: 0.75rem;
+}
+
+.player-skill-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 4px 8px;
+    margin: 0 4px 4px 0;
+    border-radius: 12px;
+    font-size: 0.62rem;
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: center;
+    border: 1px solid rgba(91, 58, 52, 0.2);
+    background: rgba(255, 255, 255, 0.55);
+    color: var(--text-dark);
+    cursor: default;
+    vertical-align: middle;
+}
+
+.player-skill-chip--passive {
+    opacity: 0.88;
+    border-style: dashed;
+}
+
+.player-skill-chip--active {
+    cursor: pointer;
+    background: linear-gradient(180deg, rgba(255, 248, 240, 0.95), rgba(255, 235, 220, 0.9));
+    box-shadow: 0 4px 12px rgba(91, 58, 52, 0.12);
+}
+
+.player-skill-chip--active:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: rgba(62, 169, 255, 0.55);
+}
+
+.player-skill-chip--active:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    transform: none;
+    filter: grayscale(0.2);
+}
+
+.player-jail-badge {
+    margin-top: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #b23d3d;
 }
 
 /* P1 / P2: thẻ trong cột cạnh bàn, không absolute */
@@ -1076,6 +1184,137 @@ body {
     .board-stage {
         transform: none;
     }
+}
+
+/* --- Nợ thuê: thẻ neo góc, không phủ / làm mờ cả bàn --- */
+.debt-crisis-dock {
+    position: fixed;
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    z-index: 95;
+    max-width: min(400px, calc(100vw - 24px));
+    pointer-events: none;
+}
+
+.debt-crisis-dock:not([hidden]) {
+    pointer-events: auto;
+}
+
+.debt-crisis-panel {
+    position: relative;
+    width: 100%;
+    max-height: min(52vh, 420px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 18px 16px;
+    border-radius: 18px;
+    box-shadow: 0 16px 40px rgba(114, 56, 53, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+.debt-crisis-title {
+    margin: 0 0 10px;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-dark);
+}
+
+.debt-crisis-summary {
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: var(--text-dark);
+}
+
+.debt-crisis-hint {
+    margin: 0 0 14px;
+    font-size: 0.82rem;
+    color: var(--text-soft);
+    line-height: 1.4;
+}
+
+.debt-asset-list {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    max-height: min(36vh, 260px);
+    overflow-y: auto;
+}
+
+.debt-asset-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+.debt-asset-item--empty {
+    display: block;
+    font-size: 0.82rem;
+    line-height: 1.4;
+    color: var(--text-soft);
+    font-weight: 500;
+}
+
+.debt-asset-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.debt-asset-name {
+    font-weight: 700;
+    font-size: 0.92rem;
+    color: var(--text-dark);
+}
+
+.debt-asset-detail {
+    font-size: 0.78rem;
+    color: var(--text-soft);
+    margin-top: 2px;
+}
+
+.debt-asset-sell {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    background: linear-gradient(135deg, #5c9fd4, #4a8bc4);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(74, 139, 196, 0.35);
+}
+
+.debt-asset-sell:hover {
+    filter: brightness(1.05);
+}
+
+.debt-asset-sell:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.debt-crisis-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.debt-btn-bankrupt {
+    background: linear-gradient(135deg, #c75c5c, #a84444) !important;
+    color: #fff !important;
 }
 
 @media (max-width: 760px) {

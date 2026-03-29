@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     const accountId = localStorage.getItem("accountId");
     const roomId = new URLSearchParams(window.location.search).get("roomId");
 
@@ -17,7 +17,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const readyButton = document.getElementById("readyButton");
     const playerCount = document.getElementById("playerCount");
     const tableStatus = document.getElementById("tableStatus");
-    const modeButtons = document.querySelectorAll(".mode-button");
 
     let roomState = null;
     let heroes = [];
@@ -85,13 +84,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         element.style.backgroundImage = "";
         element.textContent = (username || "P").slice(0, 2).toUpperCase();
-    };
-
-    const renderModeButtons = () => {
-        const currentMode = roomState?.room?.mode;
-        modeButtons.forEach((button) => {
-            button.classList.toggle("active", button.getAttribute("data-mode") === currentMode);
-        });
     };
 
     const renderSelectedHero = () => {
@@ -216,8 +208,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const hero = resolveSlotHero(player);
         const heroName = hero?.name || "No hero selected";
         const heroImageUrl = hero?.imageUrl || "";
-        const readyText = player.isReady ? "READY" : "NOT READY";
-        const readyClass = player.isReady ? "ready-on" : "ready-off";
+        let readyText;
+        let readyClass;
+        if (player.isHost) {
+            readyText = "Chủ phòng";
+            readyClass = "ready-host";
+        } else {
+            readyText = player.isReady ? "READY" : "NOT READY";
+            readyClass = player.isReady ? "ready-on" : "ready-off";
+        }
         const avatarMarkup = player.avatarUrl
             ? `<img class="slot-avatar-image" src="${player.avatarUrl}" alt="${player.username}">`
             : `<span>${(player.username || "P").slice(0, 2).toUpperCase()}</span>`;
@@ -309,13 +308,26 @@ document.addEventListener("DOMContentLoaded", () => {
             roomVisibilityIndicator.textContent = roomState?.room?.visibility === "PRIVATE" ? "🔒" : "🌐";
         }
         if (readyButton) {
-            readyButton.textContent = currentPlayerState?.isReady ? "UNREADY" : "READY";
+            const isHost = currentPlayerState?.isHost === true;
+            const players = roomState?.players || [];
+            const guests = players.filter((p) => !p.isHost);
+            const allGuestsReady = guests.length > 0 && guests.every((p) => p.isReady);
+            const enoughPlayers = players.length >= 2;
+
+            if (isHost) {
+                readyButton.textContent = "Bắt đầu";
+                readyButton.setAttribute("data-action", "start-game");
+                readyButton.disabled = !enoughPlayers || !allGuestsReady;
+            } else {
+                readyButton.textContent = currentPlayerState?.isReady ? "UNREADY" : "READY";
+                readyButton.setAttribute("data-action", "ready");
+                readyButton.disabled = false;
+            }
         }
         if (playerCount) {
             playerCount.textContent = `${roomState?.players?.length || 0}/${roomState?.room?.maxPlayers || 4} players`;
         }
 
-        renderModeButtons();
         renderSelectedHero();
         renderHeroList();
         renderPlayerSlots();
@@ -416,6 +428,27 @@ document.addEventListener("DOMContentLoaded", () => {
         await loadRoom();
     };
 
+    const postStartGame = async () => {
+        const response = await fetch(`/api/rooms/${roomId}/start`, {
+            method: "POST",
+            headers: getHeaders(true),
+            body: "{}"
+        });
+
+        if (handleUnauthorized(response)) {
+            return;
+        }
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(err || "Không thể bắt đầu trận.");
+        }
+
+        const data = await response.json();
+        if (data?.redirectUrl) {
+            window.location.href = data.redirectUrl;
+        }
+    };
+
     document.addEventListener("click", async (event) => {
         const target = event.target.closest("[data-action]");
         if (!target) {
@@ -432,6 +465,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (action === "ready") {
                 await postReady();
+            }
+
+            if (action === "start-game") {
+                await postStartGame();
             }
 
             if (action === "copy-code" && roomCode?.textContent && navigator.clipboard) {
@@ -468,7 +505,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    Promise.all([loadHeroes(), loadRoom()]);
+    try {
+        if (window.HeroSystem?.preloadCharacterSvgs) {
+            await window.HeroSystem.preloadCharacterSvgs();
+        }
+    } catch (e) {
+        console.warn("Hero SVG preload failed", e);
+    }
+    await Promise.all([loadHeroes(), loadRoom()]);
     pollingHandle = window.setInterval(loadRoom, 4000);
     window.addEventListener("beforeunload", () => {
         if (pollingHandle) {

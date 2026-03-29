@@ -31,11 +31,16 @@ public class PlayerProperty {
     @Column(name = "house_level")
     private Integer houseLevel = 0;
 
+    /** Tổng tiền đã bỏ để nâng cấp (để tính giá nhà = giá gốc + số này). */
+    @Column(name = "upgrade_spent_total")
+    private Long upgradeSpentTotal = 0L;
+
     public PlayerProperty(Game game, BoardCell boardCell, GamePlayer ownerPlayer, Integer houseLevel) {
         this.game = game;
         this.boardCell = boardCell;
         this.ownerPlayer = ownerPlayer;
         this.houseLevel = houseLevel;
+        this.upgradeSpentTotal = 0L;
         this.id = new PlayerPropertyId(game.getGameId(), boardCell.getCellId());
     }
 }
