@@ -1,5 +1,6 @@
 package com.game.monopoly.dto;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,9 +9,5 @@ import lombok.Setter;
 public class RoomInviteRequest {
     private Long roomId;
     private Long toUserProfileId;
-import lombok.Data;
-
-@Data
-public class RoomInviteRequest {
     private String username;
 }

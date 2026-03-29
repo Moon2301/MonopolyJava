@@ -3,8 +3,8 @@ package com.game.monopoly.model.metaData;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
+
 
 @Entity
 @Table(name = "UserProfile")
