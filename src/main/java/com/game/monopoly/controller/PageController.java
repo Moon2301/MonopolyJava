@@ -71,6 +71,16 @@ public class PageController {
         return "shop";
     }
 
+    @GetMapping("/topup")
+    public String topup() {
+        return "topup";
+    }
+
+    @GetMapping("/topup-result")
+    public String topupResult() {
+        return "topup-result";
+    }
+
     @GetMapping("/play-vs-ai")
     public String playVsAi() {
         return "home/play-vs-ai";

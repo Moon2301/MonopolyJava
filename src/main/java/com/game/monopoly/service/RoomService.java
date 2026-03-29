@@ -125,6 +125,7 @@ public class RoomService {
                 .slotIndex(1)
                 .isHost(true)
                 .isReady(false)
+                .selectedHeroId(profile.getDefaultCharacterId())
                 .build());
 
         return RoomCreateResponse.builder()
@@ -163,12 +164,16 @@ public class RoomService {
             throw new RuntimeException("Room is full");
         }
 
+        UserProfile profile = userProfileRepository.findByAccount_AccountId(account.getAccountId())
+                .orElseThrow(() -> new RuntimeException("UserProfile not found"));
+
         roomPlayerRepository.save(RoomPlayer.builder()
                 .room(room)
                 .account(account)
                 .slotIndex(findNextAvailableSlot(players, room.getMaxPlayers()))
                 .isHost(false)
                 .isReady(false)
+                .selectedHeroId(profile.getDefaultCharacterId())
                 .build());
 
         return RoomJoinResponse.builder()
@@ -483,24 +488,19 @@ public class RoomService {
         Room room = getRoom(roomId);
         RoomPlayer leavingPlayer = getRoomPlayer(roomId, account.getAccountId());
 
-        roomPlayerRepository.delete(leavingPlayer);
-
-        List<RoomPlayer> remainingPlayers = roomPlayerRepository.findByRoom_RoomIdOrderBySlotIndexAsc(roomId);
-        if (remainingPlayers.isEmpty()) {
+        if (Boolean.TRUE.equals(leavingPlayer.getIsHost())) {
+            // Chủ phòng thoát -> Giải tán phòng, xóa tất cả người chơi và lời mời
+            roomPlayerRepository.deleteByRoom_RoomId(roomId);
+            roomInvitationRepository.deleteByRoomId(roomId);
             roomRepository.delete(room);
+
             return MessageResponse.builder()
-                    .message("Left room")
+                    .message("Room closed because host left")
                     .build();
         }
 
-        if (Boolean.TRUE.equals(leavingPlayer.getIsHost())) {
-            RoomPlayer newHost = remainingPlayers.get(0);
-            remainingPlayers.forEach(player -> player.setIsHost(false));
-            newHost.setIsHost(true);
-            roomPlayerRepository.saveAll(remainingPlayers);
-            room.setHostPlayerId(newHost.getAccount().getAccountId());
-            roomRepository.save(room);
-        }
+        // Người chơi bình thường thoát
+        roomPlayerRepository.delete(leavingPlayer);
 
         return MessageResponse.builder()
                 .message("Left room")

@@ -12,4 +12,5 @@ public interface RoomPlayerRepository extends JpaRepository<RoomPlayer, Long> {
     Optional<RoomPlayer> findByRoom_RoomIdAndAccount_AccountId(Long roomId, Long accountId);
     long countByRoom_RoomId(Long roomId);
     void deleteByRoom_RoomIdAndAccount_AccountId(Long roomId, Long accountId);
+    void deleteByRoom_RoomId(Long roomId);
 }

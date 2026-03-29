@@ -64,5 +64,15 @@ public class UserMeController {
         userMeService.updateUsername(accountId, newUsername);
         return Map.of("success", true, "message", "Username updated");
     }
+
+    @PostMapping("/equip-hero")
+    public Map<String, Object> equipHero(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @RequestBody Map<String, Integer> request
+    ) {
+        Integer heroId = request.get("heroId");
+        userMeService.equipHero(accountId, heroId);
+        return Map.of("success", true, "message", "Hero equipped");
+    }
 }
 

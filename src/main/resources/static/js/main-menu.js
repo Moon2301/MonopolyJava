@@ -404,6 +404,18 @@ window.onload = () => {
         }
     });
 
+    // --- TOPUP NOTIFICATION ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const topupSuccess = urlParams.get('topupSuccess');
+    if (topupSuccess === 'true') {
+        alert("Nạp tiền thành công! Số dư của bạn đã được cập nhật.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        loadHomeSummary();
+    } else if (topupSuccess === 'false') {
+        alert("Giao dịch nạp tiền thất bại hoặc bị hủy.");
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     loadHomeSummary();
     loadFriendBadge();
 };
