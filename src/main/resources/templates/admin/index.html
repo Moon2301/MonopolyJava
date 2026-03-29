@@ -243,8 +243,8 @@
     };
 
     let currentTab = 'dashboard';
-    const accountId = localStorage.getItem('accountId');
-    const userRole = localStorage.getItem('userRole');
+    const accountId = sessionStorage.getItem('accountId');
+    const userRole = sessionStorage.getItem('userRole');
 
     if (!accountId || userRole !== 'ADMIN') {
         window.location.replace('/login');
@@ -419,7 +419,7 @@
 
     function closeModal() { document.getElementById('modal').classList.add('hidden'); }
     document.getElementById('logoutBtn').onclick = () => {
-        localStorage.clear();
+        sessionStorage.clear();
         window.location.href = '/login';
     };
 

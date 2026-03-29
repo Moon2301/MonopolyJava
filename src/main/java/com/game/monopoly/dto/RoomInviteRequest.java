@@ -8,4 +8,9 @@ import lombok.Setter;
 public class RoomInviteRequest {
     private Long roomId;
     private Long toUserProfileId;
+import lombok.Data;
+
+@Data
+public class RoomInviteRequest {
+    private String username;
 }

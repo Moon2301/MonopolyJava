@@ -285,6 +285,12 @@ body {
     background: linear-gradient(135deg, #facc15, #ca8a04);
 }
 
+.icon-friends {
+    background: linear-gradient(135deg, #4ade80, #16a34a);
+}
+.icon-shop {
+    background: linear-gradient(135deg, #facc15, #ca8a04);
+}
 .icon-close {
     background: linear-gradient(135deg, #f87171, #dc2626);
 }

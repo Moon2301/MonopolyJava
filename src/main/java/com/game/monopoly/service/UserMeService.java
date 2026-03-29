@@ -104,6 +104,29 @@ public class UserMeService {
                 .build();
     }
 
+    @Transactional
+    public void updateUsername(Long accountId, String newUsername) {
+        if (newUsername == null || newUsername.trim().isBlank()) {
+            throw new RuntimeException("Tên người dùng không được bỏ trống");
+        }
+        String trimmedName = newUsername.trim();
+        if (trimmedName.length() > 20) {
+            throw new RuntimeException("Tên người dùng quá dài (tối đa 20 ký tự)");
+        }
+        
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại"));
+        UserProfile profile = userProfileRepository.findByAccount_AccountId(account.getAccountId())
+                .orElseThrow(() -> new RuntimeException("Cấu hình người dùng không tồn tại"));
+
+        if (!trimmedName.equalsIgnoreCase(profile.getUsername()) && userProfileRepository.existsByUsername(trimmedName)) {
+            throw new RuntimeException("Tên người dùng đã được sử dụng");
+        }
+
+        profile.setUsername(trimmedName);
+        userProfileRepository.save(profile);
+    }
+
     /**
      * Đặt hero mặc định / hiện tại (phải thuộc sở hữu).
      */
