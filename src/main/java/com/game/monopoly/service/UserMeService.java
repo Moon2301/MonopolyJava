@@ -263,6 +263,15 @@ public class UserMeService {
         userProfileRepository.save(profile);
     }
 
+    @Transactional
+    public UserMeSummaryResponse setCurrentHero(Long accountId, Integer heroId) {
+        // dùng lại logic đã có
+        equipHero(accountId, heroId);
+
+        // trả về summary cho controller
+        return getSummary(accountId);
+    }
+
     private String guessExtension(String contentType, String originalFilename) {
         if (contentType == null) {
             return "png";
@@ -284,6 +293,7 @@ public class UserMeService {
             }
         };
     }
+
 
 }
 

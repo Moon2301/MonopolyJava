@@ -7,15 +7,9 @@ import com.game.monopoly.dto.UserMeAvatarResponse;
 import com.game.monopoly.service.UserMeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.util.Map;
 
 @RestController
@@ -26,7 +20,8 @@ public class UserMeController {
     private final UserMeService userMeService;
 
     @GetMapping("/summary")
-    public UserMeSummaryResponse getSummary(@RequestHeader(name = "X-Account-Id", required = false) Long accountId) {
+    public UserMeSummaryResponse getSummary(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId) {
         return userMeService.getSummary(accountId);
     }
 
@@ -55,6 +50,9 @@ public class UserMeController {
     ) {
         Integer heroId = body != null ? body.getHeroId() : null;
         return userMeService.setCurrentHero(accountId, heroId);
+    }
+
+    // ✅ API update username
     @PutMapping("/username")
     public Map<String, Object> updateUsername(
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
@@ -65,6 +63,7 @@ public class UserMeController {
         return Map.of("success", true, "message", "Username updated");
     }
 
+    // ✅ API equip hero
     @PostMapping("/equip-hero")
     public Map<String, Object> equipHero(
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
@@ -75,4 +74,3 @@ public class UserMeController {
         return Map.of("success", true, "message", "Hero equipped");
     }
 }
-
