@@ -25,13 +25,19 @@
                 <p class="section-tag">Hồ sơ người dùng</p>
                 <h1 id="profileUsername">Tên người chơi</h1>
                 <div class="badges-row">
-                    <span id="profileCoins" class="coin-badge">0 Xu</span>
-                    <span id="profileTickets" class="coin-badge tickets-badge">0 Vé</span>
+                    <span class="coin-badge coin-badge--silver">
+                        <span id="profileCoinSilverSlot" class="currency-coin-slot" aria-hidden="true"></span>
+                        <span id="profileCoins">0 Bạc</span>
+                    </span>
+                    <span class="coin-badge coin-badge--gold tickets-badge">
+                        <span id="profileCoinGoldSlot" class="currency-coin-slot" aria-hidden="true"></span>
+                        <span id="profileTickets">0 Vé</span>
+                    </span>
                 </div>
 
                 <div class="profile-actions">
                     <button type="button" id="changeNameButton" class="profile-action-link change-name-btn">
-                        Đổi tên <span class="rename-cost">(1.000 Xu)</span>
+                        Đổi tên <span class="rename-cost">(1.000 Bạc)</span>
                     </button>
                     <a class="profile-action-link" href="/game-history">Lịch sử đấu</a>
                     <button type="button" id="logoutButton" class="profile-action-link logout-action-btn">Đăng xuất</button>
@@ -62,7 +68,7 @@
         <div class="rename-modal__backdrop" data-close-rename="1"></div>
         <div class="rename-modal__panel">
             <h2 id="renameModalTitle" class="rename-modal__title">Đổi tên hiển thị</h2>
-            <p class="rename-modal__cost">Phí: <strong>1.000 Xu</strong> (trừ ngay khi xác nhận)</p>
+            <p class="rename-modal__cost">Phí: <strong>1.000 Bạc</strong> (trừ ngay khi xác nhận)</p>
             <label class="rename-modal__label" for="renameInput">Tên mới</label>
             <input type="text" id="renameInput" class="rename-modal__input" maxlength="80" autocomplete="nickname" placeholder="Nhập tên hiển thị mới">
             <p id="renameModalError" class="rename-modal__error" role="alert"></p>
@@ -82,6 +88,7 @@
         </div>
     </section>
 </main>
+<script src="/character/coin-system.js"></script>
 <script src="/js/profile.js"></script>
 </body>
 </html>

@@ -53,6 +53,11 @@ public class Room {
     @Column(name = "active_game_id")
     private Long activeGameId;
 
+    /** Đã bắt đầu ván (bổ sung cho {@link #status} IN_GAME). */
+    @Column(name = "is_started", nullable = false)
+    @Builder.Default
+    private Boolean isStarted = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

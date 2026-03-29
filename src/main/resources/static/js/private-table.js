@@ -2,6 +2,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     const accountId = localStorage.getItem("accountId");
     const roomId = new URLSearchParams(window.location.search).get("roomId");
 
+    const refreshPrivateRoomCurrencyIcons = () => {
+        if (window.CoinSystem && typeof CoinSystem.initCurrencySlots === "function") {
+            CoinSystem.initCurrencySlots([
+                { elId: "menuCoinSilver", type: "silver" },
+                { elId: "menuCoinGold", type: "gold" }
+            ]);
+        }
+    };
+
     const playerName = document.getElementById("playerName");
     const playerAvatar = document.getElementById("playerAvatar");
     const playerCoins = document.getElementById("playerCoins");
@@ -21,8 +30,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const readyButton = document.getElementById("readyButton");
     const playerCount = document.getElementById("playerCount");
     const tableStatus = document.getElementById("tableStatus");
-    const inviteFriendsList = document.getElementById("inviteFriendsList");
-    const inviteFriendsHint = document.getElementById("inviteFriendsHint");
+    const inviteFriendModal = document.getElementById("inviteFriendModal");
+    const inviteModalList = document.getElementById("inviteModalList");
+    const inviteUsernameInput = document.getElementById("inviteUsernameInput");
+    const notificationPanel = document.getElementById("notificationPanel");
+    const notificationBackdrop = document.getElementById("notificationBackdrop");
+    const openNotificationsBtn = document.getElementById("openNotificationsBtn");
+    const closeNotificationsBtn = document.getElementById("closeNotificationsBtn");
+    const markAllNotificationsBtn = document.getElementById("markAllNotificationsBtn");
+    const notificationList = document.getElementById("notificationList");
+    const menuLogoutBtn = document.getElementById("menuLogoutBtn");
 
     let roomState = null;
     let heroes = [];
@@ -30,6 +47,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     let lastSelectedHeroUid = null;
     /** Một lần: gán hero mặc định từ hồ sơ nếu chưa chọn. */
     let defaultHeroSynced = false;
+    /** Chỉ gọi join-by-roomId lần đầu (poll sau không cần POST lặp). */
+    let ensuredRoomJoin = false;
 
     const escapeHtml = (value) =>
         String(value ?? "")
@@ -336,6 +355,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (playerTickets) {
             playerTickets.textContent = currentPlayer.tickets ?? 0;
         }
+        refreshPrivateRoomCurrencyIcons();
         if (roomCode) {
             const currentRoomCode = roomState?.room?.roomCode ?? "-";
             roomCode.textContent = currentRoomCode;
@@ -367,32 +387,39 @@ document.addEventListener("DOMContentLoaded", async () => {
         renderSelectedHero();
         renderHeroList();
         renderPlayerSlots();
-        renderInviteFriends();
         setStatus(`Phong ${roomState?.room?.name || ""}`);
     };
 
-    const renderInviteFriends = () => {
-        if (!inviteFriendsList) {
+    const openInviteModal = () => {
+        if (!inviteFriendModal || !inviteModalList) {
             return;
         }
         const friends = roomState?.inviteFriends;
-        if (inviteFriendsHint) {
-            inviteFriendsHint.textContent = "";
-        }
+        inviteFriendModal.hidden = false;
+        inviteFriendModal.setAttribute("aria-hidden", "false");
         if (!Array.isArray(friends) || friends.length === 0) {
-            inviteFriendsList.innerHTML = `<li class="invite-friends-empty">Chưa có bạn để mời. Thêm bạn ở trang <a href="/friends">Bạn bè</a> hoặc chia sẻ mã phòng.</li>`;
+            inviteModalList.innerHTML = `<li class="invite-friends-empty">Chưa có bạn để mời. Thêm bạn ở trang <a href="/friends">Bạn bè</a> hoặc gửi mã phòng.</li>`;
             return;
         }
-        inviteFriendsList.innerHTML = friends
+        inviteModalList.innerHTML = friends
             .map((f) => {
                 const name = escapeHtml(f.username || "—");
                 const pid = f.userProfileId != null ? String(f.userProfileId) : "";
-                return `<li class="invite-friend-row">
-            <span class="invite-friend-name">${name}</span>
+                const pst = f.presenceStatus === "ONLINE" ? "Trực tuyến" : f.presenceStatus === "PLAYING" ? "Đang chơi" : "Offline";
+                return `<li class="invite-modal-row">
+            <span class="invite-modal-name">${name}<small class="invite-presence"> · ${escapeHtml(pst)}</small></span>
             <button type="button" class="invite-friend-btn" data-action="invite-friend" data-profile-id="${escapeAttr(pid)}">Mời</button>
           </li>`;
             })
             .join("");
+    };
+
+    const closeInviteModal = () => {
+        if (!inviteFriendModal) {
+            return;
+        }
+        inviteFriendModal.hidden = true;
+        inviteFriendModal.setAttribute("aria-hidden", "true");
     };
 
     const postRoomInvite = async (toUserProfileId) => {
@@ -410,6 +437,51 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!response.ok) {
             const err = await response.text();
             throw new Error(err || "Không gửi được lời mời.");
+        }
+    };
+
+    const postRoomInviteByUsername = async (username) => {
+        const response = await fetch("/api/social/room-invite", {
+            method: "POST",
+            headers: getHeaders(true),
+            body: JSON.stringify({
+                roomId: Number(roomId),
+                username: String(username).trim()
+            })
+        });
+        if (handleUnauthorized(response)) {
+            return;
+        }
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(err || "Không gửi được lời mời.");
+        }
+    };
+
+    /** Vào phòng theo roomId (link thông báo) — GET chi tiết trước đây lỗi vì chưa có RoomPlayer. */
+    const ensureJoinedRoom = async () => {
+        const joinRes = await fetch(`/api/rooms/${roomId}/join`, {
+            method: "POST",
+            headers: getHeaders(true),
+            body: JSON.stringify({})
+        });
+        if (handleUnauthorized(joinRes)) {
+            throw new Error("Phiên đăng nhập không hợp lệ.");
+        }
+        if (!joinRes.ok) {
+            const t = ((await joinRes.text()) || "").trim();
+            if (t.includes("Invalid room password") || t.toLowerCase().includes("password")) {
+                throw new Error(
+                    "Phòng riêng cần mật khẩu. Hãy vào từ menu chính: nhập mã phòng và mật khẩu."
+                );
+            }
+            if (t.includes("Room is full")) {
+                throw new Error("Phòng đã đầy.");
+            }
+            if (t.includes("not joinable")) {
+                throw new Error("Phòng không còn chờ hoặc đã vào ván.");
+            }
+            throw new Error(t || "Không thể vào phòng.");
         }
     };
 
@@ -455,6 +527,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
 
         try {
+            if (!ensuredRoomJoin) {
+                await ensureJoinedRoom();
+                ensuredRoomJoin = true;
+            }
+
             const response = await fetch(`/api/rooms/${roomId}`, {
                 headers: getHeaders()
             });
@@ -593,7 +670,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
 
             if (action === "add-player") {
-                setStatus("Dùng mã phòng, danh sách «Mời bạn bè» bên trên, hoặc Sảnh để thêm bạn.");
+                openInviteModal();
+            }
+
+            if (action === "close-invite-modal") {
+                closeInviteModal();
             }
 
             if (action === "invite-friend") {
@@ -602,37 +683,174 @@ document.addEventListener("DOMContentLoaded", async () => {
                     return;
                 }
                 await postRoomInvite(pid);
-                setStatus("Đã gửi lời mời qua tin nhắn (bạn xem trong Bạn bè).");
+                setStatus("Đã gửi lời mời (bạn bè xem thông báo chuông ở menu chính).");
+                closeInviteModal();
             }
 
-            if (action === "friends-page") {
-                event.preventDefault();
-                window.location.href = "/friends";
+            if (action === "invite-by-username") {
+                const name = inviteUsernameInput?.value?.trim();
+                if (!name) {
+                    setStatus("Nhập username người cần mời.", true);
+                    return;
+                }
+                await postRoomInviteByUsername(name);
+                if (inviteUsernameInput) {
+                    inviteUsernameInput.value = "";
+                }
+                setStatus("Đã gửi lời mời (thông báo ở menu chính — chuông).");
+                closeInviteModal();
             }
 
             if (action === "home") {
                 window.location.href = "/home";
             }
-
-            if (action === "shop") {
-                window.location.href = "/shop";
-            }
-
-            if (action === "settings") {
-                window.location.href = "/settings";
-            }
-
-            if (action === "menu") {
-                window.location.href = "/lobby";
-            }
-
-            if (action === "close") {
-                window.location.href = "/login";
-            }
         } catch (error) {
             console.error(error);
             setStatus(error.message || "Thao tac that bai.", true);
         }
+    });
+
+    const fetchActiveGame = async () => {
+        try {
+            const response = await fetch("/api/user/me/active-game", { headers: getHeaders() });
+            if (!response.ok) {
+                return null;
+            }
+            return await response.json();
+        } catch {
+            return null;
+        }
+    };
+
+    const escapeHtmlNote = (s) =>
+        String(s ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+    const openNotificationPanel = () => {
+        if (!notificationPanel) {
+            return;
+        }
+        notificationPanel.hidden = false;
+        notificationPanel.setAttribute("aria-hidden", "false");
+        loadNotificationsList();
+    };
+
+    const closeNotificationPanel = () => {
+        if (!notificationPanel) {
+            return;
+        }
+        notificationPanel.hidden = true;
+        notificationPanel.setAttribute("aria-hidden", "true");
+    };
+
+    const loadNotificationsList = async () => {
+        if (!notificationList || !accountId) {
+            return;
+        }
+        try {
+            const response = await fetch("/api/social/notifications", { headers: getHeaders() });
+            if (handleUnauthorized(response)) {
+                return;
+            }
+            if (!response.ok) {
+                notificationList.innerHTML = "<li>Không tải được thông báo.</li>";
+                return;
+            }
+            const items = await response.json();
+            if (!Array.isArray(items) || items.length === 0) {
+                notificationList.innerHTML = '<li class="notification-empty">Chưa có thông báo.</li>';
+                return;
+            }
+            notificationList.innerHTML = items
+                .map((it) => {
+                    const unread = it.read === false;
+                    const cls = unread ? "notification-item notification-item--unread" : "notification-item";
+                    const rid = it.roomId != null ? String(it.roomId) : "";
+                    const typ = String(it.type || "");
+                    const sender = it.senderUsername ? escapeHtmlNote(it.senderUsername) : "";
+                    const meta = (sender ? `${sender} · ` : "") + escapeHtmlNote(it.createdAt || "");
+                    return `<li>
+  <button type="button" class="${cls}" data-notification-id="${it.notificationId}" data-type="${escapeHtmlNote(typ)}" data-room-id="${escapeHtmlNote(rid)}">
+    <div class="notification-item-title">${escapeHtmlNote(it.title || "Thông báo")}</div>
+    <div class="notification-item-meta">${meta}</div>
+    <div class="notification-item-body">${escapeHtmlNote(it.body || "")}</div>
+  </button>
+</li>`;
+                })
+                .join("");
+        } catch (e) {
+            console.warn(e);
+            notificationList.innerHTML = "<li>Lỗi tải thông báo.</li>";
+        }
+    };
+
+    openNotificationsBtn?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openNotificationPanel();
+    });
+    notificationBackdrop?.addEventListener("click", closeNotificationPanel);
+    closeNotificationsBtn?.addEventListener("click", closeNotificationPanel);
+    markAllNotificationsBtn?.addEventListener("click", async () => {
+        try {
+            const r = await fetch("/api/social/notifications/read-all", {
+                method: "POST",
+                headers: getHeaders(true),
+                body: "{}"
+            });
+            if (r.ok) {
+                await loadNotificationsList();
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+    });
+    menuLogoutBtn?.addEventListener("click", () => {
+        localStorage.removeItem("accountId");
+        window.location.href = "/login";
+    });
+
+    notificationList?.addEventListener("click", async (ev) => {
+        const btn = ev.target.closest("[data-notification-id]");
+        if (!btn) {
+            return;
+        }
+        ev.preventDefault();
+        const id = btn.getAttribute("data-notification-id");
+        const type = btn.getAttribute("data-type");
+        const rid = btn.getAttribute("data-room-id");
+        if (!id) {
+            return;
+        }
+        try {
+            await fetch(`/api/social/notifications/${id}/read`, {
+                method: "POST",
+                headers: getHeaders(true),
+                body: "{}"
+            });
+        } catch (e) {
+            console.warn(e);
+        }
+        btn.classList.remove("notification-item--unread");
+        if (type === "ROOM_INVITE" && rid) {
+            window.location.href = `/private-table?roomId=${encodeURIComponent(rid)}`;
+        } else if (type === "FRIEND_REQUEST") {
+            window.location.href = "/friends";
+        } else {
+            await loadNotificationsList();
+        }
+    });
+
+    document.querySelectorAll("[data-route]").forEach((el) => {
+        el.addEventListener("click", (event) => {
+            const route = event.currentTarget.getAttribute("data-route");
+            if (route) {
+                event.preventDefault();
+                window.location.href = route;
+            }
+        });
     });
 
     try {
@@ -642,6 +860,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (e) {
         console.warn("Hero SVG preload failed", e);
     }
+
+    const agBoot = await fetchActiveGame();
+    if (agBoot?.hasActiveGame) {
+        if (agBoot.soloVsAi) {
+            if (window.confirm("Bạn đang còn trong ván đấu máy. Có muốn quay lại không?")) {
+                window.location.href = `/game-board?gameId=${agBoot.gameId}&vsBot=1`;
+                return;
+            }
+        } else if (agBoot.roomId != null && String(agBoot.roomId) !== String(roomId)) {
+            if (window.confirm("Bạn đang còn trong ván multiplayer. Có muốn quay lại không?")) {
+                window.location.href = `/game-board?gameId=${agBoot.gameId}&roomId=${agBoot.roomId}`;
+                return;
+            }
+        }
+    }
+
     await Promise.all([loadHeroes(), loadRoom()]);
     pollingHandle = window.setInterval(loadRoom, 2000);
     window.addEventListener("beforeunload", () => {

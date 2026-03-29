@@ -1,14 +1,17 @@
 package com.game.monopoly.service;
 
+import com.game.monopoly.dto.ActiveGameResponse;
 import com.game.monopoly.dto.UserMeSummaryResponse;
 import com.game.monopoly.model.enums.GameStatus;
 import com.game.monopoly.model.inGameData.Game;
 import com.game.monopoly.model.inGameData.GamePlayer;
+import com.game.monopoly.model.inGameData.Room;
 import com.game.monopoly.model.metaData.Account;
 import com.game.monopoly.model.metaData.Hero;
 import com.game.monopoly.model.metaData.UserProfile;
 import com.game.monopoly.repository.GamePlayerRepository;
 import com.game.monopoly.repository.GameRepository;
+import com.game.monopoly.repository.RoomRepository;
 import com.game.monopoly.repository.HeroRepository;
 import com.game.monopoly.repository.AccountRepository;
 import com.game.monopoly.repository.UserProfileRepository;
@@ -22,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -37,8 +41,52 @@ public class UserMeService {
     private final UserProfileRepository userProfileRepository;
     private final GamePlayerRepository gamePlayerRepository;
     private final GameRepository gameRepository;
+    private final RoomRepository roomRepository;
     private final HeroRepository heroRepository;
     private final HeroOwnershipService heroOwnershipService;
+
+    @Transactional(readOnly = true)
+    public ActiveGameResponse getActiveGame(Long accountId) {
+        if (accountId == null) {
+            return ActiveGameResponse.builder()
+                    .hasActiveGame(false)
+                    .soloVsAi(false)
+                    .build();
+        }
+        Account account = accountRepository.findById(accountId).orElse(null);
+        if (account == null) {
+            return ActiveGameResponse.builder()
+                    .hasActiveGame(false)
+                    .soloVsAi(false)
+                    .build();
+        }
+        UserProfile profile =
+                userProfileRepository.findByAccount_AccountId(account.getAccountId()).orElse(null);
+        if (profile == null) {
+            return ActiveGameResponse.builder()
+                    .hasActiveGame(false)
+                    .soloVsAi(false)
+                    .build();
+        }
+        List<Game> playing =
+                gameRepository.findPlayingGamesForHumanProfile(
+                        profile.getUserProfileId(), GameStatus.PLAYING);
+        if (playing.isEmpty()) {
+            return ActiveGameResponse.builder()
+                    .hasActiveGame(false)
+                    .soloVsAi(false)
+                    .build();
+        }
+        Game g = playing.get(0);
+        Optional<Room> roomOpt = roomRepository.findByActiveGameId(g.getGameId());
+        return ActiveGameResponse.builder()
+                .hasActiveGame(true)
+                .gameId(g.getGameId())
+                .roomId(roomOpt.map(Room::getRoomId).orElse(null))
+                .roomCode(roomOpt.map(Room::getRoomCode).orElse(null))
+                .soloVsAi(Boolean.TRUE.equals(g.getSoloVsAi()))
+                .build();
+    }
 
     public UserMeSummaryResponse getSummary(Long accountId) {
         Account account = accountRepository.findById(accountId)

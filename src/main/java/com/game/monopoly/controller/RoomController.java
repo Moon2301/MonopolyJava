@@ -40,6 +40,20 @@ public class RoomController {
         return roomService.joinRoom(request, accountId);
     }
 
+    /**
+     * Tham gia phòng theo id (dùng khi mở link /private-table?roomId=… — trước đây GET chi tiết báo lỗi vì chưa có
+     * RoomPlayer).
+     */
+    @PostMapping("/{roomId}/join")
+    public RoomJoinResponse joinRoomByRoomId(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @PathVariable Long roomId,
+            @RequestBody(required = false) RoomJoinPasswordBody body
+    ) {
+        String password = body != null ? body.getPassword() : null;
+        return roomService.joinRoomByRoomId(roomId, accountId, password);
+    }
+
     @GetMapping("/{roomId}")
     public RoomDetailResponse getRoomDetail(
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId,

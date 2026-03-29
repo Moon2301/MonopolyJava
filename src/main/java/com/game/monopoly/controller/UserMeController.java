@@ -2,6 +2,7 @@ package com.game.monopoly.controller;
 
 import com.game.monopoly.dto.ChangeDisplayNameRequest;
 import com.game.monopoly.dto.SetCurrentHeroRequest;
+import com.game.monopoly.dto.ActiveGameResponse;
 import com.game.monopoly.dto.UserMeSummaryResponse;
 import com.game.monopoly.dto.UserMeAvatarResponse;
 import com.game.monopoly.service.UserMeService;
@@ -26,6 +27,11 @@ public class UserMeController {
     @GetMapping("/summary")
     public UserMeSummaryResponse getSummary(@RequestHeader(name = "X-Account-Id", required = false) Long accountId) {
         return userMeService.getSummary(accountId);
+    }
+
+    @GetMapping("/active-game")
+    public ActiveGameResponse getActiveGame(@RequestHeader(name = "X-Account-Id", required = false) Long accountId) {
+        return userMeService.getActiveGame(accountId);
     }
 
     @PostMapping("/display-name")

@@ -46,6 +46,11 @@ public class RoomPlayer {
     @Column(name = "is_ready", nullable = false)
     private Boolean isReady;
 
+    /** Đang trong ván của phòng (sau khi host bắt đầu game). */
+    @Column(name = "is_playing", nullable = false)
+    @Builder.Default
+    private Boolean isPlaying = false;
+
     @Column(name = "joined_at", nullable = false)
     private LocalDateTime joinedAt;
 

@@ -1,6 +1,15 @@
 document.addEventListener("DOMContentLoaded", async () => {
     const accountId = localStorage.getItem("accountId");
 
+    const refreshAiLobbyCurrencyIcons = () => {
+        if (window.CoinSystem && typeof CoinSystem.initCurrencySlots === "function") {
+            CoinSystem.initCurrencySlots([
+                { elId: "aiMenuCoinSilver", type: "silver" },
+                { elId: "aiMenuCoinGold", type: "gold" }
+            ]);
+        }
+    };
+
     const playerAvatar = document.getElementById("aiPlayerAvatar");
     const playerName = document.getElementById("aiPlayerName");
     const playerCoins = document.getElementById("aiPlayerCoins");
@@ -46,6 +55,37 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!tableStatus) return;
         tableStatus.textContent = message;
         tableStatus.style.color = isError ? "#ffd7d7" : "#fff8eb";
+    };
+
+    const fetchActiveGame = async () => {
+        try {
+            const response = await fetch("/api/user/me/active-game", { headers: getHeaders() });
+            if (!response.ok) {
+                return null;
+            }
+            return await response.json();
+        } catch {
+            return null;
+        }
+    };
+
+    const resolveActiveGameGate = async () => {
+        const ag = await fetchActiveGame();
+        if (!ag?.hasActiveGame) {
+            return "proceed";
+        }
+        const solo = ag.soloVsAi === true;
+        const msg = solo
+            ? "Bạn đang còn trong ván đấu máy. Có muốn quay lại không?"
+            : "Bạn đang còn trong ván multiplayer. Có muốn quay lại không?";
+        if (window.confirm(msg)) {
+            const q = solo
+                ? `gameId=${ag.gameId}&vsBot=1`
+                : `gameId=${ag.gameId}&roomId=${ag.roomId != null ? ag.roomId : ""}`;
+            window.location.href = `/game-board?${q}`;
+            return "redirected";
+        }
+        return "blocked";
     };
 
     const getHeaders = (includeJson = false) => {
@@ -304,6 +344,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         if (playerCoins) playerCoins.textContent = formatNumber(userSummary?.coins);
         if (playerTickets) playerTickets.textContent = formatNumber(userSummary?.tickets ?? 0);
+        refreshAiLobbyCurrencyIcons();
         if (playerCountEl) {
             playerCountEl.textContent = `${1 + bots.length}/4 người chơi`;
         }
@@ -450,6 +491,15 @@ document.addEventListener("DOMContentLoaded", async () => {
                         renderAll();
                         return;
                     }
+                }
+
+                const gate = await resolveActiveGameGate();
+                if (gate === "redirected") {
+                    return;
+                }
+                if (gate === "blocked") {
+                    setStatus("Bạn đang trong một ván. Hãy kết thúc hoặc quay lại ván đó trước.", true);
+                    return;
                 }
 
                 startButton.disabled = true;

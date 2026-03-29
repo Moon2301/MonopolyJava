@@ -155,6 +155,34 @@ body {
     color: #d6a401;
 }
 
+.stat-pill.coin-silver em {
+    color: #778ca5;
+}
+
+.stat-pill.coin-gold em {
+    color: #d79f00;
+}
+
+.stat-pill--with-coin {
+    gap: 8px;
+}
+
+.currency-coin-slot {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-pill-text {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
 .room-title {
     justify-self: center;
     min-width: min(500px, 100%);
@@ -182,76 +210,143 @@ body {
     display: block;
 }
 
-.invite-friends-bar {
+/* Modal mời bạn (bấm dấu + ở ô trống) */
+.invite-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+}
+
+.invite-modal[hidden] {
+    display: none !important;
+}
+
+.invite-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(40, 22, 18, 0.55);
+    cursor: pointer;
+}
+
+.invite-modal-panel {
     position: relative;
     z-index: 1;
-    margin-top: 14px;
-    padding: 14px 18px 16px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.14);
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    box-shadow: var(--shadow);
+    width: min(420px, 100%);
+    max-height: min(72vh, 520px);
+    display: flex;
+    flex-direction: column;
+    padding: 18px 20px 16px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, #fff9f0 0%, #f3e6d8 100%);
+    box-shadow: 0 24px 48px rgba(60, 30, 20, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    color: var(--text-dark);
 }
 
-.invite-friends-head {
+.invite-modal-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
-.invite-friends-title {
+.invite-modal-title {
+    margin: 0;
+    font-size: 1.15rem;
     font-weight: 800;
-    font-size: 1.05rem;
-    color: #fff;
-    letter-spacing: 0.04em;
+    color: #4a3028;
 }
 
-.invite-friends-link {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #fff8d0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+.invite-modal-close {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.06);
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: #5c4038;
 }
 
-.invite-friends-list {
+.invite-modal-hint {
+    margin: 0 0 12px;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    color: rgba(74, 48, 40, 0.85);
+}
+
+.invite-modal-direct {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(90, 58, 52, 0.12);
+}
+
+.invite-modal-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #4a3028;
+    margin-bottom: 8px;
+}
+
+.invite-modal-direct-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.invite-modal-input {
+    flex: 1;
+    min-width: 160px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(90, 58, 52, 0.2);
+    font: inherit;
+    font-size: 0.92rem;
+    background: #fff;
+    color: #3d2a26;
+}
+
+.invite-modal-list {
     list-style: none;
     margin: 0;
     padding: 0;
+    overflow-y: auto;
+    flex: 1;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: 200px;
-    overflow-y: auto;
+    min-height: 80px;
 }
 
-.invite-friends-empty {
-    font-size: 0.92rem;
-    color: rgba(255, 255, 255, 0.92);
-    line-height: 1.45;
-}
-
-.invite-friends-empty a {
-    color: #fff8d0;
-    font-weight: 600;
-}
-
-.invite-friend-row {
+.invite-modal-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 12px;
-    border-radius: 12px;
-    background: rgba(0, 0, 0, 0.12);
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(90, 58, 52, 0.12);
 }
 
-.invite-friend-name {
+.invite-modal-name {
     font-weight: 700;
-    color: #fff;
     font-size: 0.95rem;
+    color: #3d2a26;
+}
+
+.invite-presence {
+    font-weight: 500;
+    font-size: 0.8rem;
+    opacity: 0.88;
+    color: #5c4037;
 }
 
 .invite-friend-btn {
@@ -272,10 +367,16 @@ body {
     filter: brightness(1.05);
 }
 
-.invite-friends-hint {
-    margin: 8px 0 0;
-    font-size: 0.82rem;
-    color: rgba(255, 255, 255, 0.75);
+.invite-friends-empty {
+    font-size: 0.92rem;
+    color: rgba(74, 48, 40, 0.8);
+    line-height: 1.45;
+    padding: 8px 4px;
+}
+
+.invite-friends-empty a {
+    color: #1d7ed8;
+    font-weight: 600;
 }
 
 .settings-bar {

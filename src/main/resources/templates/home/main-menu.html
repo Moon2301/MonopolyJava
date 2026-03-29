@@ -23,8 +23,14 @@
             <div class="player-info">
                 <div class="player-name-ribbon" id="playerName">Người chơi</div>
                 <div class="player-stats">
-                    <span class="stat-pill"><strong id="playerCoins">0</strong><em>Xu</em></span>
-                    <span class="stat-pill"><strong id="playerTickets">0</strong><em>Vé</em></span>
+                    <span class="stat-pill coin-silver stat-pill--with-coin">
+                        <span id="menuCoinSilver" class="currency-coin-slot" aria-hidden="true"></span>
+                        <span class="stat-pill-text"><strong id="playerCoins">0</strong><em>Bạc</em></span>
+                    </span>
+                    <span class="stat-pill coin-gold stat-pill--with-coin">
+                        <span id="menuCoinGold" class="currency-coin-slot" aria-hidden="true"></span>
+                        <span class="stat-pill-text"><strong id="playerTickets">0</strong><em>Vé</em></span>
+                    </span>
                 </div>
             </div>
         </section>
@@ -39,11 +45,29 @@
             <button type="button" class="circle-icon icon-shop" data-route="/shop" aria-label="Cửa hàng">
                 <span>🛒</span>
             </button>
-            <button type="button" class="circle-icon close icon-close" data-route="/login" aria-label="Đăng xuất">
-                <span>✕</span>
+            <button type="button" class="circle-icon icon-notifications" id="openNotificationsBtn" aria-label="Thông báo" title="Thông báo & lời mời" style="position: relative;">
+                <span>🔔</span>
+                <span id="notificationBadge" class="notification-badge" hidden aria-live="polite">0</span>
             </button>
         </nav>
     </header>
+
+    <div id="notificationPanel" class="notification-panel" hidden aria-hidden="true">
+        <div class="notification-panel-backdrop" id="notificationBackdrop"></div>
+        <aside class="notification-panel-sheet" role="dialog" aria-modal="true" aria-labelledby="notificationPanelTitle">
+            <header class="notification-panel-header">
+                <h2 id="notificationPanelTitle" class="notification-panel-title">Thông báo</h2>
+                <div class="notification-panel-actions">
+                    <button type="button" class="notification-mark-all" id="markAllNotificationsBtn">Đọc hết</button>
+                    <button type="button" class="notification-close-sheet" id="closeNotificationsBtn" aria-label="Đóng">✕</button>
+                </div>
+            </header>
+            <ul id="notificationList" class="notification-list"></ul>
+            <footer class="notification-panel-footer">
+                <button type="button" class="notification-logout-btn" id="menuLogoutBtn">Đăng xuất</button>
+            </footer>
+        </aside>
+    </div>
 
     <main class="menu-layout">
         <section class="cards-grid">
@@ -96,6 +120,7 @@
         </section>
     </main>
 </div>
+<script src="/character/coin-system.js"></script>
 <script src="/js/main-menu.js"></script>
 </body>
 </html>

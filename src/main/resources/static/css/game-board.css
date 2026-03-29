@@ -411,6 +411,32 @@ body {
     font-weight: 700;
 }
 
+.duel-dice-picks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: 14px 0;
+    align-items: flex-end;
+}
+
+.duel-dice-label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: rgba(45, 30, 28, 0.9);
+}
+
+.duel-dice-select {
+    min-width: 72px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(80, 50, 45, 0.25);
+    background: rgba(255, 252, 248, 0.95);
+    font-size: 1rem;
+}
+
 .turn-top-banner {
     position: fixed;
     top: 12px;
@@ -579,17 +605,25 @@ body {
 }
 
 .chat-messages {
-    flex: 0 0 auto;
-    height: 280px;
-    max-height: 280px;
+    flex: 1 1 auto;
     min-height: 160px;
+    max-height: 320px;
+    height: 280px;
     overflow-y: auto;
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin: 18px 0;
-    padding-right: 6px;
+    margin: 18px 0 0;
+    padding-right: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.chat-messages::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
 }
 
 .chat-bubble {
@@ -699,6 +733,19 @@ body {
     transform: perspective(1400px) rotateX(10deg);
 }
 
+/* Canvas nằm trong .monopoly-board: trên ô, dưới quân (player-tokens z-index 6) */
+.monopoly-board .coin-fx-canvas {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    width: auto;
+    height: auto;
+    pointer-events: none;
+    z-index: 4;
+}
+
 .money-fx-layer {
     position: absolute;
     inset: 0;
@@ -739,6 +786,7 @@ body {
 
 .board-cell {
     position: relative;
+    z-index: 1;
     border-radius: 14px;
     background: var(--board-surface);
     border: 2px solid var(--board-line);
@@ -1235,6 +1283,40 @@ body {
     outline: 3px solid var(--turn-ring);
     outline-offset: 2px;
     animation: player-active-turn-pulse 1.05s ease-in-out infinite;
+}
+
+.player-info--bankrupt {
+    filter: grayscale(0.92);
+    opacity: 0.82;
+}
+
+.player-info--bankrupt .player-chip-wrap {
+    opacity: 0.88;
+}
+
+.player-board-money {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+}
+
+.player-board-money__icon-host {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.player-board-money__value {
+    font-weight: 800;
+    font-size: 0.98rem;
+    letter-spacing: 0.02em;
+    color: #e8c84a;
+    text-shadow:
+        0 1px 0 rgba(74, 42, 14, 0.35),
+        0 0 12px rgba(232, 200, 74, 0.25);
 }
 
 @keyframes player-active-turn-pulse {

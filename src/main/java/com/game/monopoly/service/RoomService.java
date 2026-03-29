@@ -50,6 +50,7 @@ public class RoomService {
     private final PasswordEncoder passwordEncoder;
     private final HeroOwnershipService heroOwnershipService;
     private final SocialService socialService;
+    private final ActiveSessionService activeSessionService;
 
     @Transactional(readOnly = true)
     public RoomListResponse getRooms(RoomStatus status, RoomVisibility visibility, int page, int size) {
@@ -149,6 +150,8 @@ public class RoomService {
                     .build();
         }
 
+        activeSessionService.assertCanStartNewMultiplayerContext(accountId, room.getRoomId());
+
         if (room.getVisibility() == RoomVisibility.PRIVATE) {
             if (request.getPassword() == null || !passwordEncoder.matches(request.getPassword(), room.getPasswordHash())) {
                 throw new RuntimeException("Invalid room password");
@@ -156,6 +159,51 @@ public class RoomService {
         }
 
         List<RoomPlayer> players = roomPlayerRepository.findByRoom_RoomIdOrderBySlotIndexAsc(room.getRoomId());
+        if (players.size() >= room.getMaxPlayers()) {
+            throw new RuntimeException("Room is full");
+        }
+
+        roomPlayerRepository.save(RoomPlayer.builder()
+                .room(room)
+                .account(account)
+                .slotIndex(findNextAvailableSlot(players, room.getMaxPlayers()))
+                .isHost(false)
+                .isReady(false)
+                .build());
+
+        return RoomJoinResponse.builder()
+                .roomId(room.getRoomId())
+                .redirectUrl("/private-table?roomId=" + room.getRoomId())
+                .build();
+    }
+
+    /** Giống {@link #joinRoom} nhưng tìm phòng theo {@code roomId} — cho link mời từ thông báo. */
+    @Transactional
+    public RoomJoinResponse joinRoomByRoomId(Long roomId, Long accountId, String password) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
+        Room room = roomRepository.findById(roomId).orElseThrow(() -> new RuntimeException("Room not found"));
+
+        if (room.getStatus() != RoomStatus.WAITING) {
+            throw new RuntimeException("Room is not joinable");
+        }
+
+        if (roomPlayerRepository.findByRoom_RoomIdAndAccount_AccountId(roomId, account.getAccountId()).isPresent()) {
+            return RoomJoinResponse.builder()
+                    .roomId(room.getRoomId())
+                    .redirectUrl("/private-table?roomId=" + room.getRoomId())
+                    .build();
+        }
+
+        activeSessionService.assertCanStartNewMultiplayerContext(accountId, roomId);
+
+        if (room.getVisibility() == RoomVisibility.PRIVATE) {
+            if (password == null || !passwordEncoder.matches(password, room.getPasswordHash())) {
+                throw new RuntimeException("Invalid room password");
+            }
+        }
+
+        List<RoomPlayer> players = roomPlayerRepository.findByRoom_RoomIdOrderBySlotIndexAsc(roomId);
         if (players.size() >= room.getMaxPlayers()) {
             throw new RuntimeException("Room is full");
         }
@@ -210,12 +258,14 @@ public class RoomService {
                 socialService.getFriends(account.getAccountId()).stream()
                         .filter(f -> "ACCEPTED".equalsIgnoreCase(f.getStatus()))
                         .filter(f -> !profileIdsInRoom.contains(f.getUserProfileId()))
+                        .filter(f -> "ONLINE".equals(f.getPresenceStatus()))
                         .map(
                                 f ->
                                         RoomDetailResponse.InviteFriendDto.builder()
                                                 .userProfileId(f.getUserProfileId())
                                                 .username(f.getUsername())
                                                 .avatarUrl(f.getAvatarUrl())
+                                                .presenceStatus(f.getPresenceStatus())
                                                 .build())
                         .toList();
 
@@ -230,6 +280,7 @@ public class RoomService {
                         .status(room.getStatus())
                         .hostPlayerId(room.getHostPlayerId())
                         .activeGameId(room.getActiveGameId())
+                        .isStarted(room.getIsStarted())
                         .build())
                 .currentPlayer(RoomDetailResponse.CurrentPlayerDto.builder()
                         .playerId(account.getAccountId())
@@ -420,6 +471,7 @@ public class RoomService {
                 .turnState("WAIT_ROLL")
                 .version(1)
                 .eliminationSequence(0)
+                .soloVsAi(false)
                 .createdAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now())
                 .humanTurnStartedAt(LocalDateTime.now())
@@ -447,7 +499,12 @@ public class RoomService {
 
         room.setStatus(RoomStatus.IN_GAME);
         room.setActiveGameId(game.getGameId());
+        room.setIsStarted(true);
         roomRepository.save(room);
+        for (RoomPlayer rp : roomPlayers) {
+            rp.setIsPlaying(true);
+            roomPlayerRepository.save(rp);
+        }
 
         return RoomStartResponse.builder()
                 .gameId(game.getGameId())

@@ -34,7 +34,36 @@ public class SocialController {
             @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
             @RequestBody RoomInviteRequest request
     ) {
-        return socialService.sendRoomInvite(accountId, request.getToUserProfileId(), request.getRoomId());
+        return socialService.sendRoomInviteFromRequest(accountId, request);
+    }
+
+    @GetMapping("/notifications")
+    public List<NotificationItemResponse> getNotifications(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return socialService.getNotifications(accountId);
+    }
+
+    @GetMapping("/notifications/unread-count")
+    public NotificationUnreadResponse getUnreadNotificationCount(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return socialService.getUnreadNotificationCount(accountId);
+    }
+
+    @PostMapping("/notifications/{notificationId}/read")
+    public MessageResponse markNotificationRead(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId,
+            @PathVariable Long notificationId
+    ) {
+        return socialService.markNotificationRead(accountId, notificationId);
+    }
+
+    @PostMapping("/notifications/read-all")
+    public MessageResponse markAllNotificationsRead(
+            @RequestHeader(name = "X-Account-Id", required = false) Long accountId
+    ) {
+        return socialService.markAllNotificationsRead(accountId);
     }
 
     @PostMapping("/friends/{friendId}/accept")

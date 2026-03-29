@@ -46,6 +46,13 @@ public class Game {
     @Column(name = "human_turn_started_at")
     private LocalDateTime humanTurnStartedAt;
 
+    /**
+     * Chỉ người vs bot (không gắn phòng) — không thưởng xu khi kết thúc, và quy tắc đầu hàng riêng.
+     */
+    @Column(name = "solo_vs_ai")
+    @Builder.Default
+    private Boolean soloVsAi = false;
+
     /** Tiền thuê đang nợ (chưa trả đủ) — khi turnState = INSOLVENT. */
     @Column(name = "debt_rent_amount")
     private Long debtRentAmount;

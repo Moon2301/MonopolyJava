@@ -27,10 +27,28 @@
 <div id="surrenderConfirmModal" class="surrender-confirm-overlay" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="surrenderConfirmTitle">
     <div class="surrender-confirm-panel glass-panel">
         <h2 id="surrenderConfirmTitle" class="surrender-confirm-title">Đầu hàng?</h2>
-        <p class="surrender-confirm-text">Bạn sẽ bị loại khỏi ván. Ô đang sở hữu trả về thị trường (không còn chủ). Nếu đang nợ tiền thuê, tài sản và tiền mặt sẽ chuyển cho chủ nợ như khi phá sản.</p>
+        <p id="surrenderConfirmText" class="surrender-confirm-text">Bạn sẽ bị loại khỏi ván. Ô đang sở hữu trả về thị trường (không còn chủ). Nếu đang nợ tiền thuê, tài sản và tiền mặt sẽ chuyển cho chủ nợ như khi phá sản.</p>
         <div class="surrender-confirm-actions">
             <button type="button" id="surrenderCancelButton" class="action-button">Hủy</button>
             <button type="button" id="surrenderConfirmButton" class="action-button surrender-confirm-btn--danger">Đầu hàng</button>
+        </div>
+    </div>
+</div>
+<div id="duelDiceModal" class="surrender-confirm-overlay" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="duelDiceTitle">
+    <div class="surrender-confirm-panel glass-panel">
+        <h2 id="duelDiceTitle" class="surrender-confirm-title">Thần xúc xắc</h2>
+        <p class="surrender-confirm-text">Chọn mặt từng viên (1–6), sau đó bấm Tung — hệ thống sẽ di chuyển theo tổng hai xúc xắc.</p>
+        <div class="duel-dice-picks">
+            <label class="duel-dice-label">Xúc xắc 1
+                <select id="duelDiceSelect1" class="duel-dice-select" aria-label="Giá trị xúc xắc 1"></select>
+            </label>
+            <label class="duel-dice-label">Xúc xắc 2
+                <select id="duelDiceSelect2" class="duel-dice-select" aria-label="Giá trị xúc xắc 2"></select>
+            </label>
+        </div>
+        <div class="surrender-confirm-actions">
+            <button type="button" id="duelDiceCancelButton" class="action-button">Hủy</button>
+            <button type="button" id="duelDiceOkButton" class="action-button primary">Tung</button>
         </div>
     </div>
 </div>
@@ -91,6 +109,7 @@
         <div class="board-stage">
             <div id="moneyFxLayer" class="money-fx-layer" aria-hidden="true"></div>
             <div id="monopolyBoard" class="monopoly-board">
+                <canvas id="coinCanvas" class="coin-fx-canvas" aria-hidden="true" width="400" height="400"></canvas>
                 <div id="playerTokens" class="player-tokens"></div>
             </div>
 
@@ -150,6 +169,7 @@
     </div>
 </main>
 <script src="/js/hero-system.js"></script>
+<script src="/character/coin-system.js"></script>
 <script src="/js/game-board.js"></script>
 </body>
 </html>

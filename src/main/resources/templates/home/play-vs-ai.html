@@ -27,8 +27,14 @@
                 <div class="player-info">
                     <div class="player-name-ribbon" id="aiPlayerName">—</div>
                     <div class="player-stats">
-                        <span class="stat-pill"><strong id="aiPlayerCoins">0</strong><em>Xu</em></span>
-                        <span class="stat-pill"><strong id="aiPlayerTickets">0</strong><em>Vé</em></span>
+                        <span class="stat-pill coin-silver stat-pill--with-coin">
+                            <span id="aiMenuCoinSilver" class="currency-coin-slot" aria-hidden="true"></span>
+                            <span class="stat-pill-text"><strong id="aiPlayerCoins">0</strong><em>Bạc</em></span>
+                        </span>
+                        <span class="stat-pill coin-gold stat-pill--with-coin">
+                            <span id="aiMenuCoinGold" class="currency-coin-slot" aria-hidden="true"></span>
+                            <span class="stat-pill-text"><strong id="aiPlayerTickets">0</strong><em>Vé</em></span>
+                        </span>
                     </div>
                 </div>
             </section>
@@ -79,6 +85,7 @@
     </main>
 </div>
 <script src="/js/hero-system.js"></script>
+<script src="/character/coin-system.js"></script>
 <script src="/js/play-vs-ai.js"></script>
 </body>
 </html>

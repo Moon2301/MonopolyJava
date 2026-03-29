@@ -44,15 +44,22 @@ document.addEventListener("DOMContentLoaded", () => {
         acceptedEmpty.hidden = accepted.length > 0;
         outgoingEmpty.hidden = outgoing.length > 0;
 
+        const presenceLabel = (pst) => {
+            if (pst === "ONLINE") return "Trực tuyến";
+            if (pst === "PLAYING") return "Đang chơi";
+            return "Offline";
+        };
+
         const row = (f, withAccept) => {
             const li = document.createElement("li");
             li.className = "friend-item";
             const av = f.avatarUrl || "/images/avatar-default.png";
+            const pr = presenceLabel(f.presenceStatus);
             li.innerHTML = `
                 <img src="${esc(av)}" alt="">
                 <div class="meta">
                     <strong>${esc(f.username)}</strong>
-                    <small>${esc(f.status)}</small>
+                    <small>${esc(f.status)} · ${esc(pr)}</small>
                 </div>
             `;
             if (withAccept) {

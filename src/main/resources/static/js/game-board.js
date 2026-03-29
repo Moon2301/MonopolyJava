@@ -40,8 +40,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const debtBankruptButton = document.getElementById("debtBankruptButton");
     const surrenderButton = document.getElementById("surrenderButton");
     const surrenderConfirmModal = document.getElementById("surrenderConfirmModal");
+    const surrenderConfirmTextEl = document.getElementById("surrenderConfirmText");
     const surrenderCancelButton = document.getElementById("surrenderCancelButton");
     const surrenderConfirmButton = document.getElementById("surrenderConfirmButton");
+    const duelDiceModal = document.getElementById("duelDiceModal");
+    const duelDiceSelect1 = document.getElementById("duelDiceSelect1");
+    const duelDiceSelect2 = document.getElementById("duelDiceSelect2");
+    const duelDiceOkButton = document.getElementById("duelDiceOkButton");
+    const duelDiceCancelButton = document.getElementById("duelDiceCancelButton");
     if (debtCrisisModal) {
         debtCrisisModal.hidden = true;
         debtCrisisModal.setAttribute("aria-hidden", "true");
@@ -49,6 +55,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (surrenderConfirmModal) {
         surrenderConfirmModal.hidden = true;
         surrenderConfirmModal.setAttribute("aria-hidden", "true");
+    }
+    if (duelDiceModal) {
+        duelDiceModal.hidden = true;
+        duelDiceModal.setAttribute("aria-hidden", "true");
+    }
+    if (duelDiceSelect1 && duelDiceSelect2) {
+        for (let v = 1; v <= 6; v += 1) {
+            const o1 = document.createElement("option");
+            o1.value = String(v);
+            o1.textContent = String(v);
+            duelDiceSelect1.appendChild(o1);
+            const o2 = document.createElement("option");
+            o2.value = String(v);
+            o2.textContent = String(v);
+            duelDiceSelect2.appendChild(o2);
+        }
     }
 
     let turnTimerInterval = null;
@@ -69,6 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let surrenderActionInFlight = false;
     /** { skillId: string } khi đang chọn ô mục tiêu */
     let pendingSkillActivation = null;
+    let pendingDuelSkillId = null;
     const skillTargetBanner = document.getElementById("skillTargetBanner");
     const gameEndRankingOverlay = document.getElementById("gameEndRankingOverlay");
     const gameEndRankingList = document.getElementById("gameEndRankingList");
@@ -227,7 +250,143 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     };
 
-    const maybeMoneyFx = (prevBal, list) => {
+    let boardCoinAnimChain = Promise.resolve();
+
+    const queueBoardCoinAnim = (fn) => {
+        boardCoinAnimChain = boardCoinAnimChain.then(
+            () =>
+                new Promise((resolve) => {
+                    fn(() => resolve());
+                })
+        );
+    };
+
+    const getPlayerAnchorEl = (playerId) => {
+        const tok = tokensElement?.querySelector(`[data-player-order="${playerId}"]`);
+        if (tok) return tok;
+        const idx = players.findIndex((x) => x.id === playerId);
+        if (idx >= 0) return document.getElementById(`playerCard${idx + 1}`);
+        return null;
+    };
+
+    const getCellAnchoredEl = (cellIndex) => {
+        if (!boardElement || cellIndex == null || !cells.length) return null;
+        const L = cells.length;
+        const i = ((Number(cellIndex) % L) + L) % L;
+        return boardElement.querySelector(`[data-cell-index="${i}"]`);
+    };
+
+    const bronzeFlowBase = (amount) => ({
+        type: "bronze",
+        count: Math.min(36, Math.max(6, Math.floor(Math.abs(amount) / 70) + 6)),
+        arcHeight: -85,
+        stagger: 48,
+        speed: 0.024
+    });
+
+    /**
+     * Tiền ván: đồng đỏ (bronze). Trả cho người khác: quân cờ → ô giao dịch → người nhận.
+     * Ngân hàng (thuế/mua/…): quân cờ → ô. Nhận từ ngân hàng/thẻ: ô → quân cờ.
+     */
+    const runBoardCoinAnimations = (prevBal, list, landingPos) => {
+        if (prefersReducedMotion()) return;
+        const canvas = document.getElementById("coinCanvas");
+        if (!canvas || !window.CoinSystem) {
+            legacyMoneyParticleFallback(prevBal, list);
+            return;
+        }
+
+        const deltas = [];
+        list.forEach((p) => {
+            const ob = prevBal[p.id];
+            if (ob == null) return;
+            const d = p.money - ob;
+            if (d === 0) return;
+            deltas.push({
+                id: p.id,
+                d,
+                amt: Math.abs(d),
+                pos: landingPos[p.id] ?? p.position
+            });
+        });
+        if (!deltas.length) return;
+
+        const losers = deltas.filter((x) => x.d < 0);
+        const gainers = deltas.filter((x) => x.d > 0);
+        const usedG = new Set();
+        const usedL = new Set();
+
+        losers.forEach((L, li) => {
+            if (usedL.has(li)) return;
+            const gi = gainers.findIndex((G, j) => !usedG.has(j) && G.amt === L.amt && G.id !== L.id);
+            if (gi >= 0) {
+                usedL.add(li);
+                usedG.add(gi);
+                const G = gainers[gi];
+                queueBoardCoinAnim((done) => {
+                    const fromEl = getPlayerAnchorEl(L.id);
+                    const cellEl = getCellAnchoredEl(L.pos);
+                    const toEl = getPlayerAnchorEl(G.id);
+                    if (!fromEl || !cellEl || !toEl) {
+                        done();
+                        return;
+                    }
+                    CoinSystem.flow(canvas, fromEl, cellEl, {
+                        ...bronzeFlowBase(L.amt),
+                        onDone: () => {
+                            CoinSystem.flow(canvas, cellEl, toEl, {
+                                ...bronzeFlowBase(L.amt),
+                                onDone: () => {
+                                    CoinSystem.floatText(toEl, `+${L.amt}`, "#E6C200");
+                                    done();
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+        });
+
+        losers.forEach((L, li) => {
+            if (usedL.has(li)) return;
+            queueBoardCoinAnim((done) => {
+                const fromEl = getPlayerAnchorEl(L.id);
+                const cellEl = getCellAnchoredEl(L.pos);
+                if (!fromEl || !cellEl) {
+                    done();
+                    return;
+                }
+                CoinSystem.flow(canvas, fromEl, cellEl, {
+                    ...bronzeFlowBase(L.amt),
+                    onDone: () => {
+                        CoinSystem.floatText(fromEl, `-${L.amt}`, "#8B4513");
+                        done();
+                    }
+                });
+            });
+        });
+
+        gainers.forEach((G, gi) => {
+            if (usedG.has(gi)) return;
+            queueBoardCoinAnim((done) => {
+                const cellEl = getCellAnchoredEl(G.pos);
+                const toEl = getPlayerAnchorEl(G.id);
+                if (!cellEl || !toEl) {
+                    done();
+                    return;
+                }
+                CoinSystem.flow(canvas, cellEl, toEl, {
+                    ...bronzeFlowBase(G.amt),
+                    onDone: () => {
+                        CoinSystem.floatText(toEl, `+${G.amt}`, "#E6C200");
+                        done();
+                    }
+                });
+            });
+        });
+    };
+
+    const legacyMoneyParticleFallback = (prevBal, list) => {
         if (!moneyFxLayer || !boardStageEl || prefersReducedMotion()) return;
         const stageRect = boardStageEl.getBoundingClientRect();
         list.forEach((p) => {
@@ -253,7 +412,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             for (let i = 0; i < count; i += 1) {
                 const coin = document.createElement("span");
                 coin.className = "money-coin-particle";
-                coin.textContent = "$";
+                coin.textContent = "Đ";
                 const ox = (Math.random() - 0.5) * 40;
                 const oy = (Math.random() - 0.5) * 28;
                 coin.style.left = `${startX - stageRect.left + ox}px`;
@@ -770,12 +929,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (index >= players.length) {
                 card.innerHTML = "";
                 card.classList.remove("player-info--active-turn");
+                card.classList.remove("player-info--bankrupt");
                 card.style.removeProperty("--turn-ring");
                 card.style.visibility = "hidden";
                 continue;
             }
             card.style.visibility = "";
             const player = players[index];
+            card.classList.toggle("player-info--bankrupt", Boolean(player.isBankrupt));
             const src = portraitForPlayer(player);
             let chipInner;
             if (src) {
@@ -807,9 +968,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                         s.skillId != null;
                     const dis = canClick ? "" : " disabled";
                     const reqT = s.requiresTarget === true ? "1" : "";
+                    const reqDice = s.requiresDiceChoice === true ? "1" : "";
                     return `<button type="button" class="player-skill-chip player-skill-chip--active"${dis} data-skill-id="${escapeAttr(
                         String(s.skillId ?? "")
-                    )}" data-requires-target="${reqT}" title="${escapeAttr(title)}">${escapeHtml(skillShortLabel(s.name))}</button>`;
+                    )}" data-requires-target="${reqT}" data-requires-dice="${reqDice}" title="${escapeAttr(title)}">${escapeHtml(skillShortLabel(s.name))}</button>`;
                 })
                 .join("");
             const jailBadge = player.inJail
@@ -825,7 +987,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                     </div>
                     <div class="player-meta">
                         <strong>${escapeHtml(player.username)}</strong>
-                        <span>$${player.money.toLocaleString("en-US")}</span>
+                        <span class="player-board-money" title="Tiền mặt trong ván (đồng đỏ)">
+                            <span class="player-board-money__icon-host" data-board-money-icon="${escapeAttr(
+                                String(player.id)
+                            )}"></span>
+                            <strong class="player-board-money__value">${formatMoney(player.money)}</strong>
+                        </span>
                         ${jailBadge}
                     </div>
                 </div>
@@ -838,6 +1005,17 @@ document.addEventListener("DOMContentLoaded", async () => {
                 players.forEach((player, idx) => {
                     if (!portraitForPlayer(player) && player.heroName) {
                         window.HeroSystem.startIdle(`card-${player.id}`, idx * 0.08);
+                    }
+                });
+            });
+        }
+        if (window.CoinSystem) {
+            window.requestAnimationFrame(() => {
+                players.forEach((player) => {
+                    const host = document.querySelector(`[data-board-money-icon="${player.id}"]`);
+                    if (host) {
+                        host.innerHTML = "";
+                        CoinSystem.renderCoin(host, "bronze", "sm", { spin: false });
                     }
                 });
             });
@@ -1224,10 +1402,16 @@ document.addEventListener("DOMContentLoaded", async () => {
                     ? p.skills.map((sk) => ({
                           ...sk,
                           requiresTarget: sk.requiresTarget === true,
+                          requiresDiceChoice: sk.requiresDiceChoice === true,
                           effectType: sk.effectType ?? null
                       }))
                     : []
             });
+        });
+
+        const landingByPlayerId = {};
+        nextPlayers.forEach((np) => {
+            landingByPlayerId[np.id] = np.position;
         });
 
         const L = cells.length;
@@ -1377,7 +1561,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         buildPlayerCards();
         applyBoardOwnership(state);
         updateActiveTurnHighlight(state);
-        maybeMoneyFx(oldBalances, players);
         renderTokens();
         if (opts.diceLand) {
             playDiceLandEffect();
@@ -1385,10 +1568,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (animPlans.length && isLiveGame) {
             await animateTokenSteps(animPlans);
         }
+        renderTokens();
+        runBoardCoinAnimations(oldBalances, players, landingByPlayerId);
         updateTurnBanner(state);
         refreshCellInfoPanel(state);
         updateDebtCrisisUi(state);
-        appendRentNoticesToChat(state);
         appendGameLogsToChat(state);
         updateGameEndRanking(state);
         if (String(state?.status || "").toUpperCase() !== "PLAYING" && pendingSkillActivation) {
@@ -1473,6 +1657,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const openSurrenderModal = () => {
         if (!surrenderConfirmModal) return;
+        const bot = urlParams.get("vsBot") === "1";
+        if (surrenderConfirmTextEl) {
+            surrenderConfirmTextEl.textContent = bot
+                ? "Trong ván đấu máy: đầu hàng sẽ kết thúc ván ngay và xếp hạng theo số tiền hiện có (không thưởng xu)."
+                : "Bạn sẽ bị loại khỏi ván. Ô đang sở hữu trả về thị trường (không còn chủ). Nếu đang nợ tiền thuê, tài sản và tiền mặt sẽ chuyển cho chủ nợ như khi phá sản.";
+        }
         surrenderConfirmModal.hidden = false;
         surrenderConfirmModal.setAttribute("aria-hidden", "false");
     };
@@ -1483,10 +1673,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         surrenderConfirmModal.setAttribute("aria-hidden", "true");
     };
 
-    const callSkillActivate = async (skillId, targetCellId) => {
+    const openDuelDiceModal = (skillId) => {
+        pendingDuelSkillId = skillId != null ? String(skillId) : null;
+        if (!duelDiceModal) return;
+        duelDiceModal.hidden = false;
+        duelDiceModal.setAttribute("aria-hidden", "false");
+    };
+
+    const closeDuelDiceModal = () => {
+        pendingDuelSkillId = null;
+        if (!duelDiceModal) return;
+        duelDiceModal.hidden = true;
+        duelDiceModal.setAttribute("aria-hidden", "true");
+    };
+
+    const callSkillActivate = async (skillId, targetCellId, dice1, dice2) => {
         const body = { skillId: Number(skillId) };
         if (targetCellId != null && Number.isFinite(Number(targetCellId))) {
             body.targetCellId = Number(targetCellId);
+        }
+        if (dice1 != null && dice2 != null && Number.isFinite(Number(dice1)) && Number.isFinite(Number(dice2))) {
+            body.dice1 = Number(dice1);
+            body.dice2 = Number(dice2);
         }
         const response = await fetch(`/api/gameplay/${gameId}/skill/activate`, {
             method: "POST",
@@ -1560,10 +1768,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (!sid) return;
         e.preventDefault();
         const needsTarget = btn.dataset.requiresTarget === "1";
+        const needsDice = btn.dataset.requiresDice === "1";
         if (needsTarget) {
             pendingSkillActivation = { skillId: sid };
             setSkillTargetPickMode(true);
             setActionStatus("Chọn một ô trên bàn làm mục tiêu (ưu tiên bàn tải từ API).");
+            return;
+        }
+        if (needsDice) {
+            openDuelDiceModal(sid);
+            setActionStatus("Chọn hai mặt xúc xắc rồi bấm Tung.");
             return;
         }
         try {
@@ -1626,6 +1840,33 @@ document.addEventListener("DOMContentLoaded", async () => {
             pendingSkillActivation = null;
             setSkillTargetPickMode(false);
             setActionStatus("Đã hủy chọn mục tiêu kỹ năng.");
+        }
+        if (e.key === "Escape" && pendingDuelSkillId && duelDiceModal && !duelDiceModal.hidden) {
+            closeDuelDiceModal();
+            setActionStatus("Đã hủy Thần xúc xắc.");
+        }
+    });
+
+    duelDiceCancelButton?.addEventListener("click", () => {
+        closeDuelDiceModal();
+        setActionStatus("Đã hủy Thần xúc xắc.");
+    });
+    duelDiceModal?.addEventListener("click", (e) => {
+        if (e.target === duelDiceModal) closeDuelDiceModal();
+    });
+    duelDiceOkButton?.addEventListener("click", async () => {
+        const sid = pendingDuelSkillId;
+        if (!sid || !isLiveGame || !gameId) return;
+        const d1 = Number(duelDiceSelect1?.value);
+        const d2 = Number(duelDiceSelect2?.value);
+        if (!Number.isFinite(d1) || !Number.isFinite(d2)) return;
+        closeDuelDiceModal();
+        try {
+            const data = await callSkillActivate(sid, null, d1, d2);
+            await syncFromState(data.state, { diceLand: true });
+            setActionStatus(data.message || "Đã kích hoạt kỹ năng");
+        } catch (error) {
+            setActionStatus(error.message || "Kỹ năng thất bại", true);
         }
     });
 

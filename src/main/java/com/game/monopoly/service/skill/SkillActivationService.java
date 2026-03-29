@@ -17,7 +17,9 @@ import com.game.monopoly.repository.GameRepository;
 import com.game.monopoly.repository.PlayerPropertyRepository;
 import com.game.monopoly.repository.SkillRepository;
 import com.game.monopoly.repository.UserProfileRepository;
+import com.game.monopoly.service.GamePlayService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +35,7 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor
 public class SkillActivationService {
 
+    private final ObjectProvider<GamePlayService> gamePlayService;
     private final GameRepository gameRepository;
     private final GamePlayerRepository gamePlayerRepository;
     private final CharacterSkillRepository characterSkillRepository;
@@ -100,7 +103,12 @@ public class SkillActivationService {
             throw new RuntimeException("Kỹ năng đang hồi (" + cdRem + " lượt)");
         }
 
-        String detail = applyEffect(skill, player, game, request);
+        String effEarly = skill.getEffectType() == null ? "" : skill.getEffectType().toUpperCase(Locale.ROOT);
+        if ("DUEL_DICE".equals(effEarly) && !"WAIT_ROLL".equalsIgnoreCase(ts)) {
+            throw new RuntimeException("Thần xúc xắc chỉ dùng khi đang chờ tung xúc xắc.");
+        }
+
+        String detail = applyEffect(skill, player, game, request, accountId);
 
         int cd = skill.getCooldown() == null ? 0 : skill.getCooldown();
         player.setSkillCooldownRemaining(Math.max(0, cd));
@@ -124,7 +132,8 @@ public class SkillActivationService {
     }
 
     /** Hook hiệu ứng — mở rộng theo {@link Skill#getEffectType()} và luật GamePlayService. */
-    private String applyEffect(Skill skill, GamePlayer player, Game game, SkillActivateRequest request) {
+    private String applyEffect(
+            Skill skill, GamePlayer player, Game game, SkillActivateRequest request, Long accountId) {
         String effect =
                 skill.getEffectType() == null ? "" : skill.getEffectType().toUpperCase(Locale.ROOT);
         switch (effect) {
@@ -132,13 +141,26 @@ public class SkillActivationService {
                 return applyResetPropertyOwner(game, player, request);
             case "MARK_AND_BUYBACK":
                 return applyMarkAndBuyback(skill, game, player, request);
+            case "DUEL_DICE":
+                return applyDuelDice(game, player, request, accountId);
             case "SET_MOVE_RANGE":
             case "EXTRA_RANDOM_MOVE":
-            case "DUEL_DICE":
                 return "";
             default:
                 return "";
         }
+    }
+
+    private String applyDuelDice(Game game, GamePlayer player, SkillActivateRequest request, Long accountId) {
+        if (request.getDice1() == null || request.getDice2() == null) {
+            throw new RuntimeException("Chọn giá trị hai xúc xắc (1–6)");
+        }
+        int a = request.getDice1();
+        int b = request.getDice2();
+        if (a < 1 || a > 6 || b < 1 || b > 6) {
+            throw new RuntimeException("Mỗi xúc xắc từ 1 đến 6");
+        }
+        return gamePlayService.getObject().applyChosenDiceRollForSkill(game.getGameId(), accountId, a, b);
     }
 
     private String applyResetPropertyOwner(Game game, GamePlayer player, SkillActivateRequest request) {

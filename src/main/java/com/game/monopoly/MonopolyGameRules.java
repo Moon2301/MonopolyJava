@@ -13,5 +13,5 @@ public final class MonopolyGameRules {
     public static final long IN_GAME_BOT_HARD_EXTRA = 1000L;
 
     /** Tiền thưởng mỗi lần đi qua / hoàn thành vòng qua ô xuất phát. */
-    public static final long PASS_GO_BONUS = 500L;
+    public static final long PASS_GO_BONUS = 200L;
 }

@@ -18,4 +18,6 @@ public class FriendListItemResponse {
     private Boolean canAccept;
     /** Lời mời đi — đang chờ đối phương. */
     private Boolean pendingOutgoing;
+    /** ONLINE | PLAYING | OFFLINE — chỉ gần đúng (heartbeat API). */
+    private String presenceStatus;
 }

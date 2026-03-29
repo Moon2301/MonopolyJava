@@ -12,6 +12,7 @@ import com.game.monopoly.model.enums.GameStatus;
 import com.game.monopoly.model.enums.RoomStatus;
 import com.game.monopoly.model.inGameData.Game;
 import com.game.monopoly.model.inGameData.GamePlayer;
+import com.game.monopoly.model.inGameData.RoomPlayer;
 import com.game.monopoly.model.inGameData.PlayerProperty;
 import com.game.monopoly.model.inGameData.PlayerPropertyId;
 import com.game.monopoly.model.metaData.Account;
@@ -43,9 +44,12 @@ public class GamePlayService {
     private static final int LIQUIDATION_PERCENT = 90;
     private static final int HUMAN_WAIT_ROLL_SECONDS = 25;
     private static final int HUMAN_ACTION_SECONDS = 35;
+    /** Không có API/ heartbeat trong khoảng này → một bước AI thay người (mỗi lần {@link #getState}). */
+    private static final long DISCONNECT_SUBSTITUTE_AFTER_MS = 60_000L;
 
     private final GameRepository gameRepository;
     private final RoomRepository roomRepository;
+    private final RoomPlayerRepository roomPlayerRepository;
     private final GamePlayerRepository gamePlayerRepository;
     private final PlayerPropertyRepository playerPropertyRepository;
     private final BoardCellRepository boardCellRepository;
@@ -56,6 +60,7 @@ public class GamePlayService {
     private final HeroRepository heroRepository;
     private final PlayerSkillViewService playerSkillViewService;
     private final SkillActivationService skillActivationService;
+    private final PresenceRegistry presenceRegistry;
     private final Random random = new Random();
 
     private final Map<Long, Integer[]> lastDiceByGame = new HashMap<>();
@@ -90,6 +95,8 @@ public class GamePlayService {
     }
 
     private final Map<Long, OpponentLandPending> pendingOpponentLandByGameId = new ConcurrentHashMap<>();
+    /** Đi vào ô Chance — sau cùng của lượt di chuyển, cho thêm một lượt {@code WAIT_ROLL}. */
+    private final Map<Long, Boolean> pendingChanceExtraRollByGameId = new ConcurrentHashMap<>();
 
     private static final NumberFormat VI_MONEY =
             NumberFormat.getNumberInstance(Locale.forLanguageTag("vi-VN"));
@@ -109,6 +116,77 @@ public class GamePlayService {
                     list.add(message);
                     return list;
                 });
+    }
+
+    /**
+     * Log chuyển tiền giữa hai người: (1) mô tả (2) người trả & số dư (3) người nhận & số dư; {@code receiverNote}
+     * ví dụ nguồn skill.
+     */
+    private void logMoneyTransferThreeLines(
+            Long gameId,
+            String actionLine,
+            GamePlayer payer,
+            GamePlayer receiver,
+            long amount,
+            String receiverNote) {
+        enqueueGameLog(gameId, actionLine);
+        if (payer != null && amount > 0) {
+            long pb = payer.getBalance() == null ? 0L : payer.getBalance();
+            enqueueGameLog(
+                    gameId,
+                    displayNameForPlayer(payer)
+                            + " -"
+                            + formatMoneyLog(amount)
+                            + " tiền, số dư: "
+                            + formatMoneyLog(pb));
+        }
+        if (receiver != null && amount > 0) {
+            long rb = receiver.getBalance() == null ? 0L : receiver.getBalance();
+            String mid =
+                    receiverNote != null && !receiverNote.isBlank()
+                            ? " (từ "
+                                    + receiverNote
+                                    + ")"
+                            : "";
+            enqueueGameLog(
+                    gameId,
+                    displayNameForPlayer(receiver)
+                            + " +"
+                            + formatMoneyLog(amount)
+                            + mid
+                            + " tiền, số dư: "
+                            + formatMoneyLog(rb));
+        }
+    }
+
+    private void logSpendOnly(Long gameId, String actionLine, GamePlayer payer, long amount) {
+        enqueueGameLog(gameId, actionLine);
+        if (payer != null && amount > 0) {
+            long pb = payer.getBalance() == null ? 0L : payer.getBalance();
+            enqueueGameLog(
+                    gameId,
+                    displayNameForPlayer(payer)
+                            + " -"
+                            + formatMoneyLog(amount)
+                            + " tiền, số dư: "
+                            + formatMoneyLog(pb));
+        }
+    }
+
+    private void logReceiveOnly(Long gameId, String actionLine, GamePlayer receiver, long amount, String note) {
+        enqueueGameLog(gameId, actionLine);
+        if (receiver != null && amount != 0) {
+            long rb = receiver.getBalance() == null ? 0L : receiver.getBalance();
+            String suffix = note != null && !note.isBlank() ? " (từ " + note + ")" : "";
+            enqueueGameLog(
+                    gameId,
+                    displayNameForPlayer(receiver)
+                            + " +"
+                            + formatMoneyLog(amount)
+                            + suffix
+                            + " tiền, số dư: "
+                            + formatMoneyLog(rb));
+        }
     }
 
     private void logDiceMovement(Game game, GamePlayer player, int d1, int d2, long passGoBonus) {
@@ -137,6 +215,13 @@ public class GamePlayService {
     @Transactional
     public StartBotGameResponse startBotGame(Long accountId, StartBotGameRequest request) {
         UserProfile profile = getProfileByAccountId(accountId);
+        List<Game> alreadyPlaying =
+                gameRepository.findPlayingGamesForHumanProfile(
+                        profile.getUserProfileId(), GameStatus.PLAYING);
+        if (!alreadyPlaying.isEmpty()) {
+            throw new RuntimeException(
+                    "Bạn đang trong một ván. Hãy kết thúc hoặc quay lại ván trước.");
+        }
         String legacyDifficulty = normalizeDifficulty(request != null ? request.getDifficulty() : null);
 
         List<BotSlotRequest> slotList =
@@ -166,6 +251,7 @@ public class GamePlayService {
                 .turnState("WAIT_ROLL")
                 .version(1)
                 .eliminationSequence(0)
+                .soloVsAi(true)
                 .createdAt(LocalDateTime.now())
                 .startedAt(LocalDateTime.now())
                 .humanTurnStartedAt(LocalDateTime.now())
@@ -264,10 +350,12 @@ public class GamePlayService {
     @Transactional
     public GameStateResponse getState(Long gameId, Long accountId) {
         Game game = getGame(gameId);
+        finishGameIfAtMostOneActivePlayer(game);
+        game = getGame(gameId);
         healStuckInsolvencyIfNeeded(game);
         game = getGame(gameId);
         ensureHumanTurnClockStarted(game);
-        maybeResolveExpiredHumanTurn(game);
+        resolveHumanTurnAutomation(game);
         game = getGame(gameId);
         advanceOneBotStep(game);
         game = getGame(gameId);
@@ -398,6 +486,10 @@ public class GamePlayService {
      * Mỗi người chơi thật nhận ngẫu nhiên 10–200 xu vào tài khoản; chỉ chạy một lần khi ván kết thúc.
      */
     private void awardEndMatchCoins(Long gameId) {
+        Game g = gameRepository.findById(gameId).orElse(null);
+        if (g != null && Boolean.TRUE.equals(g.getSoloVsAi())) {
+            return;
+        }
         List<GamePlayer> players = gamePlayerRepository.findByGameIdOrderByTurnOrderAsc(gameId);
         for (GamePlayer gp : players) {
             if (Boolean.TRUE.equals(gp.getIsBot()) || gp.getUserProfileId() == null) {
@@ -412,8 +504,8 @@ public class GamePlayService {
                     .findById(gp.getUserProfileId())
                     .ifPresent(
                             profile -> {
-                                long g = profile.getGold() == null ? 0L : profile.getGold();
-                                profile.setGold(g + reward);
+                                long curGold = profile.getGold() == null ? 0L : profile.getGold();
+                                profile.setGold(curGold + reward);
                                 userProfileRepository.save(profile);
                             });
             gamePlayerRepository.save(gp);
@@ -482,6 +574,28 @@ public class GamePlayService {
         return actionResult(gameId, message, accountId);
     }
 
+    /**
+     * Thần xúc xắc — tung với hai mặt đã chọn (gọi từ {@link com.game.monopoly.service.skill.SkillActivationService}).
+     */
+    @Transactional
+    public String applyChosenDiceRollForSkill(Long gameId, Long accountId, int d1, int d2) {
+        Game game = getGame(gameId);
+        GamePlayer player = getCurrentTurnPlayer(game);
+        validateHumanTurn(player, accountId);
+        if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())) {
+            throw new RuntimeException("Bạn đang nợ tiền thuê — hãy bán tài sản hoặc phá sản");
+        }
+        if (!"WAIT_ROLL".equalsIgnoreCase(game.getTurnState())) {
+            throw new RuntimeException("Lượt hiện tại không thể tung xúc xắc");
+        }
+        player = gamePlayerRepository.findById(player.getGamePlayerId()).orElseThrow();
+        RollDiceOutcome rolled =
+                Boolean.TRUE.equals(player.getInJail())
+                        ? performJailRollWithDice(game, player, d1, d2)
+                        : performNormalRollWithDice(game, player, d1, d2);
+        return rolled.d1() + " + " + rolled.d2();
+    }
+
     @Transactional
     public GameActionResponse activateSkill(Long gameId, Long accountId, SkillActivateRequest request) {
         String msg =
@@ -543,14 +657,17 @@ public class GamePlayService {
         game.setHumanTurnStartedAt(LocalDateTime.now());
         gameRepository.save(game);
 
-        enqueueGameLog(
+        String cellLabel = cell.getName() != null ? cell.getName() : "Ô";
+        logSpendOnly(
                 gameId,
                 displayNameForPlayer(player)
-                        + " mua \""
-                        + (cell.getName() != null ? cell.getName() : "Ô")
-                        + "\" · trả "
+                        + " tiêu tiền tại 「"
+                        + cellLabel
+                        + "」 để mua ô trống: "
                         + formatMoneyLog(price)
-                        + ".");
+                        + ".",
+                player,
+                price);
 
         return actionResult(gameId, "Mua ô " + cell.getName() + " thành công", accountId);
     }
@@ -606,18 +723,27 @@ public class GamePlayService {
             playerPropertyRepository.save(prop);
             game.setHumanTurnStartedAt(LocalDateTime.now());
             gameRepository.save(game);
-            enqueueGameLog(
+            String cl = cell.getName() != null ? cell.getName() : "Ô";
+            String recvNote =
+                    p.buybackPercent != 130
+                            ? "mua lại đất, ưu đãi kỹ năng Điều Khoản Vàng ("
+                                    + p.buybackPercent
+                                    + "% giá niêm yết)"
+                            : "mua lại đất (" + p.buybackPercent + "% giá niêm yết)";
+            logMoneyTransferThreeLines(
                     gameId,
                     displayNameForPlayer(player)
-                            + " mua lại \""
-                            + (cell.getName() != null ? cell.getName() : "Ô")
-                            + "\" từ "
+                            + " tiêu tiền tại 「"
+                            + cl
+                            + "」 để mua lại từ "
                             + displayNameForPlayer(owner)
-                            + " · trả "
+                            + ": "
                             + formatMoneyLog(price)
-                            + " ("
-                            + p.buybackPercent
-                            + "% giá niêm yết).");
+                            + ".",
+                    player,
+                    owner,
+                    price,
+                    recvNote);
             return actionResult(gameId, "Đã mua lại ô " + cell.getName(), accountId);
         }
 
@@ -709,16 +835,19 @@ public class GamePlayService {
         game.setHumanTurnStartedAt(LocalDateTime.now());
         gameRepository.save(game);
 
-        enqueueGameLog(
+        String cn = cell.getName() != null ? cell.getName() : "Ô";
+        logSpendOnly(
                 gameId,
                 displayNameForPlayer(player)
-                        + " nâng cấp \""
-                        + (cell.getName() != null ? cell.getName() : "Ô")
-                        + "\" lên cấp "
+                        + " tiêu tiền tại 「"
+                        + cn
+                        + "」 để nâng cấp lên cấp "
                         + property.getHouseLevel()
-                        + " · trả "
+                        + ": "
                         + formatMoneyLog(upgradeCost)
-                        + ".");
+                        + ".",
+                player,
+                upgradeCost);
 
         return actionResult(gameId, "Nâng cấp ô " + cell.getName() + " lên cấp " + property.getHouseLevel(), accountId);
     }
@@ -763,6 +892,10 @@ public class GamePlayService {
     private RollDiceOutcome performJailRoll(Game game, GamePlayer player) {
         int d1 = random.nextInt(6) + 1;
         int d2 = random.nextInt(6) + 1;
+        return performJailRollWithDice(game, player, d1, d2);
+    }
+
+    private RollDiceOutcome performJailRollWithDice(Game game, GamePlayer player, int d1, int d2) {
         lastDiceByGame.put(game.getGameId(), new Integer[]{d1, d2});
         int fails = player.getJailFailedRolls() == null ? 0 : player.getJailFailedRolls();
 
@@ -802,9 +935,13 @@ public class GamePlayService {
     }
 
     private RollDiceOutcome performNormalRoll(Game game, GamePlayer player) {
-        Integer orderSnap = game.getCurrentPlayerOrder();
         int d1 = random.nextInt(6) + 1;
         int d2 = random.nextInt(6) + 1;
+        return performNormalRollWithDice(game, player, d1, d2);
+    }
+
+    private RollDiceOutcome performNormalRollWithDice(Game game, GamePlayer player, int d1, int d2) {
+        Integer orderSnap = game.getCurrentPlayerOrder();
         lastDiceByGame.put(game.getGameId(), new Integer[]{d1, d2});
         boolean isDouble = d1 == d2;
         if (isDouble) {
@@ -876,6 +1013,18 @@ public class GamePlayService {
 
         boolean isDouble = d1 == d2;
         if (allowExtraRollIfDouble && isDouble) {
+            pendingChanceExtraRollByGameId.remove(game.getGameId());
+            game.setTurnState("WAIT_ROLL");
+            if (!Boolean.TRUE.equals(player.getIsBot())) {
+                game.setHumanTurnStartedAt(LocalDateTime.now());
+            } else {
+                game.setHumanTurnStartedAt(null);
+            }
+            gameRepository.save(game);
+            return new RollDiceOutcome(d1, d2, passGoBonus);
+        }
+
+        if (Boolean.TRUE.equals(pendingChanceExtraRollByGameId.remove(game.getGameId()))) {
             game.setTurnState("WAIT_ROLL");
             if (!Boolean.TRUE.equals(player.getIsBot())) {
                 game.setHumanTurnStartedAt(LocalDateTime.now());
@@ -947,9 +1096,12 @@ public class GamePlayService {
         long bal = p.getBalance() == null ? 0L : p.getBalance();
         p.setBalance(bal + gift);
         gamePlayerRepository.save(p);
-        enqueueGameLog(
+        logReceiveOnly(
                 game.getGameId(),
-                displayNameForPlayer(p) + " nhận " + formatMoneyLog(gift) + " " + labelSuffix + ".");
+                displayNameForPlayer(p) + " nhận tiền 「Community Chest」.",
+                p,
+                gift,
+                labelSuffix);
     }
 
     private boolean isTaxCell(BoardCell cell) {
@@ -980,16 +1132,19 @@ public class GamePlayService {
         }
         player.setBalance(bal - due);
         gamePlayerRepository.save(player);
-        enqueueGameLog(
+        String taxCell = cell.getName() != null ? cell.getName() : "Thuế";
+        logSpendOnly(
                 game.getGameId(),
                 displayNameForPlayer(player)
-                        + " nộp thuế "
+                        + " tiêu tiền tại 「"
+                        + taxCell
+                        + "」 cho thuế ("
                         + pct
-                        + "% tiền hiện có ("
+                        + "% số dư: "
                         + formatMoneyLog(due)
-                        + ") tại «"
-                        + (cell.getName() != null ? cell.getName() : "Thuế")
-                        + "».");
+                        + ").",
+                player,
+                due);
     }
 
     private void clearSkillBuybackMarkForCell(GamePlayer player, int cellId) {
@@ -1004,12 +1159,23 @@ public class GamePlayService {
     private void payRentAfterLanding(Game game, GamePlayer currentPlayer, GamePlayer owner, BoardCell cell, long rent) {
         long payerBalance = currentPlayer.getBalance() == null ? 0L : currentPlayer.getBalance();
         long ownerBalance = owner.getBalance() == null ? 0L : owner.getBalance();
+        String cellName = cell.getName() != null && !cell.getName().isBlank() ? cell.getName() : "Ô";
 
         if (rent <= payerBalance) {
             currentPlayer.setBalance(payerBalance - rent);
             owner.setBalance(ownerBalance + rent);
             gamePlayerRepository.save(currentPlayer);
             gamePlayerRepository.save(owner);
+            String action =
+                    displayNameForPlayer(currentPlayer)
+                            + " tiêu tiền tại 「"
+                            + cellName
+                            + "」 cho tiền thuê ("
+                            + displayNameForPlayer(owner)
+                            + "): "
+                            + formatMoneyLog(rent)
+                            + ".";
+            logMoneyTransferThreeLines(game.getGameId(), action, currentPlayer, owner, rent, null);
             enqueueRentNotice(game, currentPlayer, owner, cell, rent);
             return;
         }
@@ -1025,6 +1191,18 @@ public class GamePlayService {
             gamePlayerRepository.save(currentPlayer);
             gamePlayerRepository.save(owner);
             transferAllPropertiesFromTo(game.getGameId(), currentPlayer, owner);
+            long paidAll = payerBalance;
+            String action =
+                    displayNameForPlayer(currentPlayer)
+                            + " không đủ tiền trả thuế tại 「"
+                            + cellName
+                            + "」 — chuyển toàn bộ tiền mặt "
+                            + formatMoneyLog(paidAll)
+                            + " cho "
+                            + displayNameForPlayer(owner)
+                            + " (phá sản).";
+            logMoneyTransferThreeLines(
+                    game.getGameId(), action, currentPlayer, owner, paidAll, "tiền mặt còn lại khi phá sản nợ thuê");
             enqueueRentNotice(game, currentPlayer, owner, cell, payerBalance);
             advanceTurn(game);
             return;
@@ -1037,6 +1215,20 @@ public class GamePlayService {
         gameRepository.save(game);
     }
 
+    private boolean isChanceCell(BoardCell cell) {
+        if (cell.getType() == null) {
+            return false;
+        }
+        return cell.getType().toUpperCase(Locale.ROOT).contains("CHANCE");
+    }
+
+    private boolean isJailVisitCell(BoardCell cell) {
+        if (cell.getType() == null) {
+            return false;
+        }
+        return cell.getType().toUpperCase(Locale.ROOT).contains("JAIL_VISIT");
+    }
+
     private void applyLandingEffect(Game game, GamePlayer currentPlayer) {
         BoardCell cell = getCellByPosition(game, currentPlayer.getPosition());
         if (isGoToJailCell(cell)) {
@@ -1047,12 +1239,27 @@ public class GamePlayService {
             advanceTurn(game);
             return;
         }
+        if (isJailVisitCell(cell)) {
+            enqueueGameLog(
+                    game.getGameId(),
+                    displayNameForPlayer(currentPlayer) + " vào ô Thăm ngục — bị khóa trong tù.");
+            sendToJail(game, currentPlayer);
+            advanceTurn(game);
+            return;
+        }
+        if (isChanceCell(cell)) {
+            pendingChanceExtraRollByGameId.put(game.getGameId(), Boolean.TRUE);
+            enqueueGameLog(
+                    game.getGameId(),
+                    displayNameForPlayer(currentPlayer) + " vào ô Chance — được thêm một lượt tung xúc xắc.");
+            return;
+        }
         if (isTaxCell(cell)) {
             applyTaxLanding(game, currentPlayer, cell);
             return;
         }
         if (isCommunityChestCell(cell)) {
-            grantChestRandomMoney(game, currentPlayer, "từ Community Chest");
+            grantChestRandomMoney(game, currentPlayer, "Community Chest");
             return;
         }
         Optional<PlayerProperty> ppOpt =
@@ -1264,14 +1471,17 @@ public class GamePlayService {
                 gamePlayerRepository.save(botPlayer);
                 playerPropertyRepository.save(pp);
                 long paid = getCellPrice(cell);
-                enqueueGameLog(
+                String bl = cell.getName() != null ? cell.getName() : "Ô";
+                logSpendOnly(
                         gid,
                         displayNameForPlayer(botPlayer)
-                                + " mua \""
-                                + (cell.getName() != null ? cell.getName() : "Ô")
-                                + "\" · trả "
+                                + " tiêu tiền tại 「"
+                                + bl
+                                + "」 để mua ô trống: "
                                 + formatMoneyLog(paid)
-                                + ".");
+                                + ".",
+                        botPlayer,
+                        paid);
                 return;
             }
         }
@@ -1295,16 +1505,19 @@ public class GamePlayService {
                 existing.get().setUpgradeSpentTotal(sp + cost);
                 gamePlayerRepository.save(botPlayer);
                 playerPropertyRepository.save(existing.get());
-                enqueueGameLog(
+                String bn = cell.getName() != null ? cell.getName() : "Ô";
+                logSpendOnly(
                         gid,
                         displayNameForPlayer(botPlayer)
-                                + " nâng cấp \""
-                                + (cell.getName() != null ? cell.getName() : "Ô")
-                                + "\" lên cấp "
+                                + " tiêu tiền tại 「"
+                                + bn
+                                + "」 để nâng cấp lên cấp "
                                 + existing.get().getHouseLevel()
-                                + " · trả "
+                                + ": "
                                 + formatMoneyLog(cost)
-                                + ".");
+                                + ".",
+                        botPlayer,
+                        cost);
                 return;
             }
         }
@@ -1405,6 +1618,21 @@ public class GamePlayService {
         gamePlayerRepository.save(creditor);
 
         if (debtCell != null) {
+            String cl = debtCell.getName() != null ? debtCell.getName() : "Ô nợ";
+            logMoneyTransferThreeLines(
+                    game.getGameId(),
+                    displayNameForPlayer(payer)
+                            + " tiêu tiền tại 「"
+                            + cl
+                            + "」 để trả nợ thuê cho "
+                            + displayNameForPlayer(creditor)
+                            + ": "
+                            + formatMoneyLog(pay)
+                            + ".",
+                    payer,
+                    creditor,
+                    pay,
+                    null);
             enqueueRentNotice(game, payer, creditor, debtCell, pay);
         }
 
@@ -1429,14 +1657,27 @@ public class GamePlayService {
         gamePlayerRepository.save(creditor);
         clearDebtFields(game);
         gameRepository.save(game);
-        enqueueGameLog(
-                game.getGameId(),
-                displayNameForPlayer(debtor)
-                        + " phá sản — chuyển "
-                        + formatMoneyLog(cash)
-                        + " và tài sản cho "
-                        + displayNameForPlayer(creditor)
-                        + ".");
+        if (cash > 0) {
+            logMoneyTransferThreeLines(
+                    game.getGameId(),
+                    displayNameForPlayer(debtor)
+                            + " phá sản — chuyển "
+                            + formatMoneyLog(cash)
+                            + " tiền mặt và tài sản cho "
+                            + displayNameForPlayer(creditor)
+                            + ".",
+                    debtor,
+                    creditor,
+                    cash,
+                    "tiền mặt khi phá sản nợ thuê");
+        } else {
+            enqueueGameLog(
+                    game.getGameId(),
+                    displayNameForPlayer(debtor)
+                            + " phá sản — chuyển tài sản cho "
+                            + displayNameForPlayer(creditor)
+                            + ".");
+        }
         advanceTurn(game);
     }
 
@@ -1510,6 +1751,10 @@ public class GamePlayService {
             throw new RuntimeException("Bạn đã bị loại");
         }
 
+        if (Boolean.TRUE.equals(game.getSoloVsAi())) {
+            return finishSoloVsAiSurrender(gameId, game, player, accountId);
+        }
+
         if ("INSOLVENT".equalsIgnoreCase(game.getTurnState())
                 && Objects.equals(game.getCurrentPlayerOrder(), player.getTurnOrder())) {
             return declareBankruptcyForDebt(gameId, accountId);
@@ -1527,7 +1772,7 @@ public class GamePlayService {
         gamePlayerRepository.save(player);
         enqueueGameLog(
                 gameId,
-                displayNameForPlayer(player) + " đầu hàng — rời ván, tài sản trả về thị trường.");
+                displayNameForPlayer(player) + " đầu hàng (phá sản) — rời ván, tài sản trả về thị trường.");
 
         game = getGame(gameId);
         if (isCurrent) {
@@ -1536,6 +1781,37 @@ public class GamePlayService {
             checkGameFinishedAfterElimination(getGame(gameId));
         }
         return actionResult(gameId, "Bạn đã đầu hàng.", accountId);
+    }
+
+    /** Đấu máy: đầu hàng = kết thúc ván ngay, xếp hạng theo số dư hiện tại (không thưởng xu). */
+    private GameActionResponse finishSoloVsAiSurrender(
+            Long gameId, Game game, GamePlayer triggeringPlayer, Long accountId) {
+        List<GamePlayer> all = new ArrayList<>(gamePlayerRepository.findByGameIdOrderByTurnOrderAsc(gameId));
+        all.sort(Comparator.comparingLong(p -> p.getBalance() == null ? 0L : p.getBalance()));
+        GamePlayer winner = all.get(all.size() - 1);
+        int seq = 0;
+        for (GamePlayer p : all) {
+            if (Objects.equals(p.getGamePlayerId(), winner.getGamePlayerId())) {
+                p.setEliminationOrder(null);
+                p.setIsBankrupt(false);
+            } else {
+                seq++;
+                p.setEliminationOrder(seq);
+                p.setIsBankrupt(true);
+            }
+            gamePlayerRepository.save(p);
+        }
+        game.setStatus(GameStatus.FINISHED);
+        game.setTurnState("END_TURN");
+        game.setWinnerPlayerId(winner.getGamePlayerId());
+        game.setEndedAt(LocalDateTime.now());
+        game.setHumanTurnStartedAt(null);
+        gameRepository.save(game);
+        releaseRoomAfterGameFinished(gameId);
+        enqueueGameLog(
+                gameId,
+                displayNameForPlayer(triggeringPlayer) + " đầu hàng — kết thúc ván đấu máy (xếp hạng theo số dư).");
+        return actionResult(gameId, "Ván đấu máy kết thúc — xếp hạng theo tiền hiện có.", accountId);
     }
 
     private void releaseAllPropertiesUnowned(Long gameId, GamePlayer owner) {
@@ -1553,21 +1829,35 @@ public class GamePlayService {
     /** Khi người bị loại không phải người đang tới lượt — chỉ kiểm tra còn ≤1 người hoạt động. */
     private void checkGameFinishedAfterElimination(Game game) {
         game = getGame(game.getGameId());
+        finishGameIfAtMostOneActivePlayer(game);
+    }
+
+    /**
+     * Còn tối đa 1 người chưa phá sản → kết thúc ván (gọi đầu lượt / sau mỗi loại / khi poll state).
+     */
+    private boolean finishGameIfAtMostOneActivePlayer(Game game) {
+        if (game.getStatus() != GameStatus.PLAYING) {
+            return false;
+        }
         List<GamePlayer> all = gamePlayerRepository.findByGameIdOrderByTurnOrderAsc(game.getGameId());
         List<GamePlayer> active =
                 all.stream().filter(p -> !Boolean.TRUE.equals(p.getIsBankrupt())).toList();
-        if (active.size() <= 1) {
-            game.setStatus(GameStatus.FINISHED);
-            game.setTurnState("END_TURN");
-            if (!active.isEmpty()) {
-                game.setWinnerPlayerId(active.get(0).getGamePlayerId());
-            }
-            game.setEndedAt(LocalDateTime.now());
-            game.setHumanTurnStartedAt(null);
-            gameRepository.save(game);
-            releaseRoomAfterGameFinished(game.getGameId());
-            awardEndMatchCoins(game.getGameId());
+        if (active.size() > 1) {
+            return false;
         }
+        game.setStatus(GameStatus.FINISHED);
+        game.setTurnState("END_TURN");
+        if (!active.isEmpty()) {
+            game.setWinnerPlayerId(active.get(0).getGamePlayerId());
+        } else {
+            game.setWinnerPlayerId(null);
+        }
+        game.setEndedAt(LocalDateTime.now());
+        game.setHumanTurnStartedAt(null);
+        gameRepository.save(game);
+        releaseRoomAfterGameFinished(game.getGameId());
+        awardEndMatchCoins(game.getGameId());
+        return true;
     }
 
     /** Phòng quay về chờ để «Chơi lại» không bị redirect vào bàn cũ (activeGameId + IN_GAME). */
@@ -1578,7 +1868,15 @@ public class GamePlayService {
                         room -> {
                             room.setStatus(RoomStatus.WAITING);
                             room.setActiveGameId(null);
+                            room.setIsStarted(false);
                             roomRepository.save(room);
+                            for (RoomPlayer rp :
+                                    roomPlayerRepository.findByRoom_RoomIdOrderBySlotIndexAsc(
+                                            room.getRoomId())) {
+                                rp.setIsPlaying(false);
+                                rp.setIsReady(false);
+                                roomPlayerRepository.save(rp);
+                            }
                         });
     }
 
@@ -1655,26 +1953,12 @@ public class GamePlayService {
     }
 
     private void advanceTurn(Game game) {
+        if (finishGameIfAtMostOneActivePlayer(game)) {
+            return;
+        }
         List<GamePlayer> players = gamePlayerRepository.findByGameIdOrderByTurnOrderAsc(game.getGameId());
         if (players.isEmpty()) {
             throw new RuntimeException("Game has no players");
-        }
-
-        List<GamePlayer> activePlayers = players.stream()
-                .filter(p -> !Boolean.TRUE.equals(p.getIsBankrupt()))
-                .toList();
-        if (activePlayers.size() <= 1) {
-            game.setStatus(GameStatus.FINISHED);
-            game.setTurnState("END_TURN");
-            if (!activePlayers.isEmpty()) {
-                game.setWinnerPlayerId(activePlayers.get(0).getGamePlayerId());
-            }
-            game.setEndedAt(LocalDateTime.now());
-            game.setHumanTurnStartedAt(null);
-            gameRepository.save(game);
-            releaseRoomAfterGameFinished(game.getGameId());
-            awardEndMatchCoins(game.getGameId());
-            return;
         }
 
         int currentOrder = game.getCurrentPlayerOrder() == null ? 1 : game.getCurrentPlayerOrder();
@@ -1902,7 +2186,69 @@ public class GamePlayService {
         if ("WAIT_ROLL".equalsIgnoreCase(ts)) {
             performRollAndMove(game, cur);
         } else {
+            pendingOpponentLandByGameId.remove(game.getGameId());
             advanceTurn(game);
+        }
+    }
+
+    /** Hết giờ lượt người: mất kết nối lâu → một bước AI; còn kết nối → hết timer mới tự xử lý. */
+    private void resolveHumanTurnAutomation(Game game) {
+        if (game.getStatus() != GameStatus.PLAYING) {
+            return;
+        }
+        GamePlayer cur = getCurrentTurnPlayer(game);
+        if (Boolean.TRUE.equals(cur.getIsBot())) {
+            return;
+        }
+        Long accId = resolveAccountIdForGamePlayer(cur);
+        if (presenceRegistry.isDisconnectedLongerThan(accId, DISCONNECT_SUBSTITUTE_AFTER_MS)) {
+            runDisconnectedSubstituteStep(game, cur);
+        } else {
+            maybeResolveExpiredHumanTurn(game);
+        }
+    }
+
+    private Long resolveAccountIdForGamePlayer(GamePlayer p) {
+        if (p == null || p.getUserProfileId() == null) {
+            return null;
+        }
+        return userProfileRepository
+                .findById(p.getUserProfileId())
+                .map(UserProfile::getAccount)
+                .map(Account::getAccountId)
+                .orElse(null);
+    }
+
+    /**
+     * Một bước giống bot cho người đang «offline» quá ngưỡng — khi họ gọi API lại (touch), nhánh này ngừng.
+     */
+    private void runDisconnectedSubstituteStep(Game game, GamePlayer cur) {
+        Long gid = game.getGameId();
+        game = getGame(gid);
+        cur = gamePlayerRepository.findById(cur.getGamePlayerId()).orElseThrow();
+        if (game.getStatus() != GameStatus.PLAYING) {
+            return;
+        }
+        if (Boolean.TRUE.equals(cur.getIsBot())) {
+            return;
+        }
+        String ts = game.getTurnState();
+        if ("INSOLVENT".equalsIgnoreCase(ts)) {
+            advanceOneBotDebtStep(game, cur);
+            return;
+        }
+        if ("WAIT_ROLL".equalsIgnoreCase(ts)) {
+            enqueueGameLog(
+                    gid,
+                    displayNameForPlayer(cur) + " mất kết nối — hệ thống tung xúc xắc thay.");
+            performRollAndMove(game, cur);
+            return;
+        }
+        if ("ACTION_REQUIRED".equalsIgnoreCase(ts)) {
+            enqueueGameLog(
+                    gid,
+                    displayNameForPlayer(cur) + " mất kết nối — hệ thống hành động thay (một bước).");
+            executeBotActionPhase(game, cur);
         }
     }
 

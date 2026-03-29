@@ -58,6 +58,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const formatNumber = (value) => new Intl.NumberFormat("vi-VN").format(value || 0);
 
+    const refreshProfileCurrencyIcons = () => {
+        if (window.CoinSystem && typeof CoinSystem.initCurrencySlots === "function") {
+            CoinSystem.initCurrencySlots([
+                { elId: "profileCoinSilverSlot", type: "silver" },
+                { elId: "profileCoinGoldSlot", type: "gold" }
+            ]);
+        }
+    };
+
     const handleUnauthorized = (response) => {
         if (response.status === 401 || response.status === 403) {
             redirectToLogin();
@@ -82,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 profileUsername.textContent = data.username || "Nguoi choi";
             }
             if (profileCoins) {
-                profileCoins.textContent = `${formatNumber(data.coins)} Xu`;
+                profileCoins.textContent = `${formatNumber(data.coins)} Bạc`;
             }
             lastCoins = data.coins != null ? Number(data.coins) : 0;
             if (changeNameButton) {
@@ -91,12 +100,13 @@ document.addEventListener("DOMContentLoaded", () => {
             if (renameHint) {
                 renameHint.textContent =
                     lastCoins < RENAME_COST
-                        ? `Cần ít nhất ${formatNumber(RENAME_COST)} xu để đổi tên (bạn đang có ${formatNumber(lastCoins)} xu).`
+                        ? `Cần ít nhất ${formatNumber(RENAME_COST)} bạc để đổi tên (bạn đang có ${formatNumber(lastCoins)} bạc).`
                         : "";
             }
             if (profileTickets) {
-                profileTickets.textContent = `${formatNumber(data.tickets)} Ve`;
+                profileTickets.textContent = `${formatNumber(data.tickets)} Vé`;
             }
+            refreshProfileCurrencyIcons();
             if (statMatches) {
                 statMatches.textContent = data.matches ?? 0;
             }

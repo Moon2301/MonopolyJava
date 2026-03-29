@@ -37,6 +37,7 @@ public class PlayerSkillViewService {
             boolean ready = passive || cdRem <= 0;
             String et = s.getEffectType();
             boolean needsTarget = requiresTargetSkill(et);
+            boolean needsDice = requiresDiceChoiceSkill(et);
             out.add(
                     GameStateResponse.PlayerSkillDto.builder()
                             .skillId(s.getSkillId())
@@ -44,6 +45,7 @@ public class PlayerSkillViewService {
                             .description(s.getEffectFormula())
                             .effectType(et)
                             .requiresTarget(needsTarget)
+                            .requiresDiceChoice(needsDice)
                             .triggerType(s.getTriggerType())
                             .cooldownTurns(s.getCooldown())
                             .cooldownRemaining(passive ? 0 : cdRem)
@@ -60,5 +62,12 @@ public class PlayerSkillViewService {
         }
         String u = effectType.toUpperCase(Locale.ROOT);
         return "RESET_PROPERTY_OWNER".equals(u) || "MARK_AND_BUYBACK".equals(u);
+    }
+
+    private static boolean requiresDiceChoiceSkill(String effectType) {
+        if (effectType == null) {
+            return false;
+        }
+        return "DUEL_DICE".equals(effectType.toUpperCase(Locale.ROOT));
     }
 }

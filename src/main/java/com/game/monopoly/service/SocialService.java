@@ -2,6 +2,11 @@ package com.game.monopoly.service;
 
 import com.game.monopoly.dto.FriendListItemResponse;
 import com.game.monopoly.dto.MessageItemResponse;
+import com.game.monopoly.dto.RoomInviteRequest;
+import com.game.monopoly.dto.MessageResponse;
+import com.game.monopoly.dto.NotificationItemResponse;
+import com.game.monopoly.dto.NotificationUnreadResponse;
+import com.game.monopoly.model.enums.GameStatus;
 import com.game.monopoly.model.enums.RoomStatus;
 import com.game.monopoly.model.inGameData.Room;
 import com.game.monopoly.model.metaData.*;
@@ -28,6 +33,30 @@ public class SocialService {
     private final MessageRepository messageRepository;
     private final RoomRepository roomRepository;
     private final RoomPlayerRepository roomPlayerRepository;
+    private final UserNotificationRepository userNotificationRepository;
+    private final GameRepository gameRepository;
+    private final PresenceRegistry presenceRegistry;
+
+    @Transactional(readOnly = true)
+    public String presenceStatusForProfile(Long userProfileId) {
+        if (userProfileId == null) {
+            return "OFFLINE";
+        }
+        boolean playing =
+                !gameRepository
+                        .findPlayingGamesForHumanProfile(userProfileId, GameStatus.PLAYING)
+                        .isEmpty();
+        if (playing) {
+            return "PLAYING";
+        }
+        UserProfile up = userProfileRepository.findById(userProfileId).orElse(null);
+        Long accId =
+                up != null && up.getAccount() != null ? up.getAccount().getAccountId() : null;
+        if (presenceRegistry.isOnline(accId)) {
+            return "ONLINE";
+        }
+        return "OFFLINE";
+    }
 
     @Transactional(readOnly = true)
     public List<FriendListItemResponse> getFriends(Long accountId) {
@@ -61,6 +90,7 @@ public class SocialService {
                     .unreadMessages(unread)
                     .canAccept(canAccept)
                     .pendingOutgoing(pendingOutgoing)
+                    .presenceStatus(presenceStatusForProfile(other.getUserProfileId()))
                     .build());
         }
 
@@ -93,6 +123,16 @@ public class SocialService {
         friend.setStatus("PENDING");
         friend = friendRepository.save(friend);
 
+        userNotificationRepository.save(
+                UserNotification.builder()
+                        .recipient(target)
+                        .sender(me)
+                        .type("FRIEND_REQUEST")
+                        .title("Lời mời kết bạn")
+                        .body(me.getUsername() + " muốn kết bạn với bạn.")
+                        .read(false)
+                        .build());
+
         String avatar = target.getAvatarUrl();
         if (avatar == null || avatar.isBlank()) {
             avatar = DEFAULT_AVATAR;
@@ -107,6 +147,7 @@ public class SocialService {
                 .unreadMessages(0L)
                 .canAccept(false)
                 .pendingOutgoing(true)
+                .presenceStatus(presenceStatusForProfile(target.getUserProfileId()))
                 .build();
     }
 
@@ -138,6 +179,7 @@ public class SocialService {
                 .unreadMessages(messageRepository.countUnreadBySender(me.getUserProfileId(), other.getUserProfileId()))
                 .canAccept(false)
                 .pendingOutgoing(false)
+                .presenceStatus(presenceStatusForProfile(other.getUserProfileId()))
                 .build();
     }
 
@@ -233,6 +275,26 @@ public class SocialService {
                 .build();
     }
 
+    @Transactional
+    public MessageItemResponse sendRoomInviteFromRequest(Long accountId, RoomInviteRequest request) {
+        if (request == null || request.getRoomId() == null) {
+            throw new RuntimeException("roomId is required");
+        }
+        Long roomId = request.getRoomId();
+        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+            UserProfile target =
+                    userProfileRepository
+                            .findByUsername(request.getUsername().trim())
+                            .orElseThrow(
+                                    () -> new RuntimeException("Không tìm thấy người chơi với username này"));
+            return sendRoomInvite(accountId, target.getUserProfileId(), roomId);
+        }
+        if (request.getToUserProfileId() == null) {
+            throw new RuntimeException("Nhập username hoặc chọn bạn trong danh sách");
+        }
+        return sendRoomInvite(accountId, request.getToUserProfileId(), roomId);
+    }
+
     /**
      * Gửi tin nhắn mời bạn vào phòng (chỉ khi đã kết bạn và bạn đang ở trong phòng chờ).
      */
@@ -271,7 +333,87 @@ public class SocialService {
                         + "\nVào phòng chờ: /private-table?roomId="
                         + roomId
                         + "\n(Hoặc nhập mã phòng ở menu chính.)";
-        return sendMessage(accountId, toUserProfileId, content);
+        MessageItemResponse out = sendMessage(accountId, toUserProfileId, content);
+        userNotificationRepository.save(
+                UserNotification.builder()
+                        .recipient(receiver)
+                        .sender(me)
+                        .type("ROOM_INVITE")
+                        .title("Lời mời vào phòng")
+                        .body(
+                                me.getUsername()
+                                        + " mời bạn vào bàn riêng. Mã phòng: "
+                                        + code)
+                        .roomId(roomId)
+                        .roomCode(code)
+                        .read(false)
+                        .build());
+        return out;
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationItemResponse> getNotifications(Long accountId) {
+        UserProfile me = getCurrentProfile(accountId);
+        return userNotificationRepository
+                .findTop50ByRecipient_UserProfileIdOrderByCreatedAtDesc(me.getUserProfileId())
+                .stream()
+                .map(this::toNotificationDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationUnreadResponse getUnreadNotificationCount(Long accountId) {
+        UserProfile me = getCurrentProfile(accountId);
+        long n =
+                userNotificationRepository.countByRecipient_UserProfileIdAndReadFalse(
+                        me.getUserProfileId());
+        return NotificationUnreadResponse.builder().unreadCount(n).build();
+    }
+
+    @Transactional
+    public MessageResponse markNotificationRead(Long accountId, Long notificationId) {
+        UserProfile me = getCurrentProfile(accountId);
+        UserNotification n =
+                userNotificationRepository
+                        .findById(notificationId)
+                        .orElseThrow(() -> new RuntimeException("Thông báo không tồn tại"));
+        if (!n.getRecipient().getUserProfileId().equals(me.getUserProfileId())) {
+            throw new RuntimeException("Không có quyền");
+        }
+        n.setRead(true);
+        userNotificationRepository.save(n);
+        return MessageResponse.builder().message("OK").build();
+    }
+
+    @Transactional
+    public MessageResponse markAllNotificationsRead(Long accountId) {
+        UserProfile me = getCurrentProfile(accountId);
+        List<UserNotification> list =
+                userNotificationRepository.findTop50ByRecipient_UserProfileIdOrderByCreatedAtDesc(
+                        me.getUserProfileId());
+        for (UserNotification n : list) {
+            if (!Boolean.TRUE.equals(n.getRead())) {
+                n.setRead(true);
+                userNotificationRepository.save(n);
+            }
+        }
+        return MessageResponse.builder().message("OK").build();
+    }
+
+    private NotificationItemResponse toNotificationDto(UserNotification n) {
+        UserProfile s = n.getSender();
+        return NotificationItemResponse.builder()
+                .notificationId(n.getNotificationId())
+                .type(n.getType())
+                .title(n.getTitle())
+                .body(n.getBody())
+                .read(n.getRead())
+                .createdAt(n.getCreatedAt().format(DATE_TIME_FORMATTER))
+                .roomId(n.getRoomId())
+                .roomCode(n.getRoomCode())
+                .senderUserProfileId(s != null ? s.getUserProfileId() : null)
+                .senderUsername(s != null ? s.getUsername() : null)
+                .build();
     }
 
     private UserProfile getCurrentProfile(Long accountId) {

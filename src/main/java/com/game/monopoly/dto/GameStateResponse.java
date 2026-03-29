@@ -173,6 +173,8 @@ public class GameStateResponse {
         private String effectType;
         /** Cần gửi targetCellId khi kích hoạt. */
         private Boolean requiresTarget;
+        /** Kỹ năng chọn cặp xúc xắc (DUEL_DICE): gửi dice1, dice2 khi kích hoạt. */
+        private Boolean requiresDiceChoice;
         /** PASSIVE hoặc ACTIVE */
         private String triggerType;
         private Integer cooldownTurns;

@@ -8,8 +8,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     const ownedHeroIds = new Set();
     let currentCoins = 0;
 
-    const formatPrice = (price) => `${new Intl.NumberFormat("vi-VN").format(price || 0)} Xu`;
-    const formatCoins = (coins) => `Xu: ${new Intl.NumberFormat("vi-VN").format(coins || 0)}`;
+    const formatPrice = (price) => `${new Intl.NumberFormat("vi-VN").format(price || 0)} Bạc`;
+    const formatCoins = (coins) => `Bạc: ${new Intl.NumberFormat("vi-VN").format(coins || 0)}`;
+
+    const refreshShopCoinIcon = () => {
+        if (window.CoinSystem && typeof CoinSystem.initCurrencySlots === "function") {
+            CoinSystem.initCurrencySlots([{ elId: "shopCoinSilverSlot", type: "silver", size: "md" }]);
+        }
+    };
 
     backButton?.addEventListener("click", () => {
         if (window.history.length > 1) {
@@ -21,7 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const loadShopState = async () => {
         if (!accountId) {
-            coinsNode.textContent = "Xu: vui lòng đăng nhập";
+            coinsNode.textContent = "Bạc: vui lòng đăng nhập";
             return;
         }
         const stateResponse = await fetch("/api/user/shop/state", {
@@ -34,6 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentCoins = state.coins || 0;
         (state.ownedHeroIds || []).forEach((id) => ownedHeroIds.add(id));
         coinsNode.textContent = formatCoins(currentCoins);
+        refreshShopCoinIcon();
     };
 
     const purchaseHero = async (heroId) => {
@@ -106,6 +113,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         ownedHeroIds.add(hero.heroId);
                         currentCoins = result.remainingCoins || currentCoins;
                         coinsNode.textContent = formatCoins(currentCoins);
+                        refreshShopCoinIcon();
                         button.textContent = "Đã sở hữu";
                     } else {
                         button.disabled = false;

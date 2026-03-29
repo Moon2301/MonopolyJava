@@ -34,6 +34,7 @@ public class RoomDetailResponse {
         private Long hostPlayerId;
         /** Có khi phòng đã vào ván ({@code IN_GAME}). */
         private Long activeGameId;
+        private Boolean isStarted;
     }
 
     @Getter
@@ -78,5 +79,6 @@ public class RoomDetailResponse {
         private Long userProfileId;
         private String username;
         private String avatarUrl;
+        private String presenceStatus;
     }
 }
