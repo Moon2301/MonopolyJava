@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", async () => {
-    const accountId = localStorage.getItem("accountId");
+    const accountId = sessionStorage.getItem("accountId");
     const urlParams = new URLSearchParams(window.location.search);
     const gameId = urlParams.get("gameId");
     const layoutMapId = urlParams.get("mapId") || "1";
@@ -380,7 +380,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     ];
     const isBotMode = urlParams.get("vsBot") === "1";
-    const difficulty = (urlParams.get("difficulty") || localStorage.getItem("aiDifficulty") || "easy").toLowerCase();
+    const difficulty = (urlParams.get("difficulty") || sessionStorage.getItem("aiDifficulty") || "easy").toLowerCase();
     const botLabel = difficulty === "hard" ? "Bot khó" : "Bot dễ";
 
     const players = isBotMode

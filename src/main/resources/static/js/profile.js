@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    const accountId = localStorage.getItem("accountId");
+    const accountId = sessionStorage.getItem("accountId");
     const redirectToLogin = () => {
         window.location.href = "/login";
     };
@@ -35,6 +35,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const avatarFileInput = document.getElementById("avatarFileInput");
     const avatarStatus = document.getElementById("avatarStatus");
     const logoutButton = document.getElementById("logoutButton");
+    const closeProfileBtn = document.getElementById("closeProfileBtn");
+    const editUsernameBtn = document.getElementById("editUsernameBtn");
     const changeNameButton = document.getElementById("changeNameButton");
     const renameHint = document.getElementById("renameHint");
     const renameModal = document.getElementById("renameModal");
@@ -208,9 +210,100 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    closeProfileBtn?.addEventListener("click", () => {
+        window.location.href = "/home";
+    });
+
+    const editNameModal = document.getElementById("editNameModal");
+    const newNameInput = document.getElementById("newNameInput");
+    const cancelEditNameBtn = document.getElementById("cancelEditNameBtn");
+    const confirmEditNameBtn = document.getElementById("confirmEditNameBtn");
+    const editNameError = document.getElementById("editNameError");
+
+    const closeEditModal = () => {
+        if (editNameModal) {
+            editNameModal.style.display = "none";
+            newNameInput.value = "";
+            editNameError.style.display = "none";
+        }
+    };
+
+    const showError = (msg) => {
+        if (editNameError) {
+            editNameError.textContent = msg;
+            editNameError.style.display = "block";
+        }
+    };
+
+    editUsernameBtn?.addEventListener("click", () => {
+        if (editNameModal && newNameInput && profileUsername) {
+            newNameInput.value = profileUsername.textContent;
+            editNameError.style.display = "none";
+            editNameModal.style.display = "flex";
+            newNameInput.focus();
+        }
+    });
+
+    cancelEditNameBtn?.addEventListener("click", closeEditModal);
+
+    const submitNewName = async () => {
+        const currentName = profileUsername ? profileUsername.textContent : "";
+        const newName = newNameInput ? newNameInput.value.trim() : "";
+        
+        if (!newName) {
+            showError("Tên không được bỏ trống.");
+            return;
+        }
+        if (newName === currentName) {
+            closeEditModal();
+            return;
+        }
+
+        try {
+            confirmEditNameBtn.disabled = true;
+            confirmEditNameBtn.textContent = "...";
+            const response = await fetch("/api/user/me/username", {
+                method: "PUT",
+                headers: { ...getHeaders(), "Content-Type": "application/json" },
+                body: JSON.stringify({ username: newName })
+            });
+
+            if (handleUnauthorized(response)) return;
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || err.message || "Cập nhật tên thất bại.");
+            }
+
+            if (profileUsername) {
+                 profileUsername.textContent = newName;
+            }
+            closeEditModal();
+            loadSummary(); // Refresh avatar fallback
+        } catch (error) {
+            console.error(error);
+            showError("Lỗi: " + error.message);
+        } finally {
+            if (confirmEditNameBtn) {
+                confirmEditNameBtn.disabled = false;
+                confirmEditNameBtn.textContent = "Lưu";
+            }
+        }
+    };
+
+    confirmEditNameBtn?.addEventListener("click", submitNewName);
+    
+    newNameInput?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            submitNewName();
+        } else if (e.key === "Escape") {
+            closeEditModal();
+        }
+    });
+
     logoutButton?.addEventListener("click", () => {
-        localStorage.removeItem("accountId");
-        localStorage.removeItem("userRole");
+        sessionStorage.removeItem("accountId");
+        sessionStorage.removeItem("userRole");
         redirectToLogin();
     });
 

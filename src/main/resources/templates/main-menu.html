@@ -8,6 +8,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/main-menu.css">
+    <script>
+        if (!sessionStorage.getItem("accountId")) {
+            window.location.replace("/login");
+        }
+    </script>
 </head>
 <body>
 <div class="home-menu">
@@ -16,6 +21,7 @@
     <div class="backdrop-shape shape-c"></div>
 
     <header class="top-header">
+        <section class="player-banner" data-route="/profile" style="cursor: pointer;" aria-label="Hồ sơ người chơi">
         <section class="player-banner" id="playerProfileBanner" role="link" tabindex="0" title="Hồ sơ cá nhân" aria-label="Mở hồ sơ cá nhân">
             <div class="player-avatar-frame">
                 <img class="player-avatar" id="playerAvatar" src="/images/avatar-default.png" alt="Avatar">
@@ -31,8 +37,12 @@
 
         <div class="title-ribbon">MAIN MENU</div>
 
-        <nav class="header-icons header-icons--compact" aria-label="Lối tắt">
-            <button type="button" class="circle-icon" data-route="/shop" aria-label="Cửa hàng">
+        <nav class="header-icons" aria-label="Dieu huong dau trang">
+            <button type="button" class="circle-icon" id="openFriendsBtn" aria-label="Ban be" title="Quản lý bạn bè" style="position: relative;">
+                <span>👥</span>
+                <span id="friendBadge" style="display: none; position: absolute; top: -5px; right: -5px; background: #ff5252; color: #fff; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; font-weight: bold; justify-content: center; align-items: center; border: 2px solid var(--bg-dark, #2a2a3e);">0</span>
+            </button>
+            <button type="button" class="circle-icon" data-route="/shop" aria-label="Cua hang">
                 <span>🛒</span>
             </button>
             <button type="button" class="circle-icon close" data-route="/login" aria-label="Đăng xuất">
@@ -91,7 +101,49 @@
             </article>
         </section>
     </main>
+    
+    <!-- Friends Modal -->
+    <div id="friendsModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content" style="background: var(--bg-dark, #2a2a3e); padding: 24px; border-radius: 16px; width: 90%; max-width: 500px; color: white; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 22px;">Bạn bè</h2>
+                <button type="button" id="closeFriendsBtn" style="background: none; border: none; color: white; font-size: 24px; cursor: pointer;">✕</button>
+            </div>
+
+            <!-- Add Friend -->
+            <div style="display: flex; gap: 10px; margin-bottom: 24px;">
+                <input type="text" id="addFriendInput" placeholder="Nhập tên người dùng cần kết bạn" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #3a3a4e; background: #1a1a2e; color: white;">
+                <button type="button" id="sendFriendRequestBtn" style="padding: 12px 20px; border-radius: 8px; border: none; background: #67b738; color: white; font-weight: bold; cursor: pointer;">Gửi</button>
+            </div>
+            <p id="friendActionStatus" style="color: #ff5252; font-size: 14px; margin-top: -16px; margin-bottom: 16px; display: none;"></p>
+
+            <!-- Pending Requests -->
+            <h3 style="font-size: 16px; color: #aaa; margin-bottom: 12px; border-bottom: 1px solid #3a3a4e; padding-bottom: 6px;">Lời mời kết bạn</h3>
+            <div id="pendingRequestsList" style="max-height: 150px; overflow-y: auto; margin-bottom: 24px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="color: #444; font-style: italic;">Không có lời mời nào</div>
+            </div>
+
+            <!-- Friends List -->
+            <h3 style="font-size: 16px; color: #aaa; margin-bottom: 12px; border-bottom: 1px solid #3a3a4e; padding-bottom: 6px;">Danh sách bạn bè</h3>
+            <div id="friendsList" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                <div style="color: #444; font-style: italic;">Chưa có bạn bè</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Room Invite Modal -->
+    <div id="roomInviteModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div class="modal-content" style="background: var(--bg-dark, #2a2a3e); padding: 24px; border-radius: 16px; width: 90%; max-width: 400px; color: white; display: flex; flex-direction: column; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 10px;">🎲</div>
+            <h2 style="margin: 0; font-size: 22px; margin-bottom: 10px;">Lời mời vào phòng!</h2>
+            <p style="color: #ccc; margin-bottom: 24px;">Bạn <strong id="inviterNameDisplay" style="color: #67b738;">...</strong> đang rủ bạn tham gia vào phòng chơi của họ.</p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button type="button" id="rejectRoomInviteBtn" style="padding: 12px 24px; border-radius: 8px; border: 1px solid #ea4335; background: transparent; color: #ea4335; font-weight: bold; cursor: pointer; font-family: Outfit;">Từ chối</button>
+                <button type="button" id="acceptRoomInviteBtn" style="padding: 12px 24px; border-radius: 8px; border: none; background: #67b738; color: white; font-weight: bold; cursor: pointer; font-family: Outfit;">Vào phòng ngay</button>
+            </div>
+        </div>
+    </div>
 </div>
-<script src="/js/main-menu.js"></script>
+<script src="/js/main-menu.js?v=3"></script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 window.onload = () => {
-    const accountId = localStorage.getItem("accountId");
+    const accountId = sessionStorage.getItem("accountId");
+    const homeMenu = document.querySelector(".home-menu");
     const playerAvatar = document.getElementById("playerAvatar");
     const playerName = document.getElementById("playerName");
     const playerCoins = document.getElementById("playerCoins");
@@ -161,6 +162,9 @@ window.onload = () => {
         target.addEventListener("click", (event) => {
             const route = event.currentTarget.getAttribute("data-route");
             if (route) {
+                if (route === "/login") {
+                    sessionStorage.removeItem("accountId");
+                }
                 window.location.href = route;
             }
         });
@@ -182,6 +186,197 @@ window.onload = () => {
     roomCodeInput?.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
             joinRoom();
+        }
+    });
+
+    // --- FRIENDS FEATURE ---
+    const friendBadge = document.getElementById("friendBadge");
+    const openFriendsBtn = document.getElementById("openFriendsBtn");
+    const closeFriendsBtn = document.getElementById("closeFriendsBtn");
+    const friendsModal = document.getElementById("friendsModal");
+    const addFriendInput = document.getElementById("addFriendInput");
+    const sendFriendRequestBtn = document.getElementById("sendFriendRequestBtn");
+    const friendActionStatus = document.getElementById("friendActionStatus");
+    const pendingRequestsList = document.getElementById("pendingRequestsList");
+    const friendsList = document.getElementById("friendsList");
+
+    const setFriendStatus = (msg, isErr = false) => {
+        if (!friendActionStatus) return;
+        friendActionStatus.textContent = msg;
+        friendActionStatus.style.color = isErr ? "#ff5252" : "#67b738";
+        friendActionStatus.style.display = "block";
+        setTimeout(() => { if (friendActionStatus.textContent === msg) friendActionStatus.style.display = "none"; }, 3000);
+    };
+
+    const loadFriends = async () => {
+        try {
+            const response = await fetch("/api/friends", { headers: getHeaders() });
+            if (!response.ok) throw new Error("Lỗi tải danh sách bạn bè");
+            const data = await response.json();
+            
+            if (pendingRequestsList) {
+                if (data.pendingRequests && data.pendingRequests.length > 0) {
+                    pendingRequestsList.innerHTML = data.pendingRequests.map(req => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: #1a1a2e; padding: 10px 16px; border-radius: 8px;">
+                            <span style="font-weight: 500;">${req.username}</span>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" onclick="window.acceptFriend(${req.friendshipId})" style="background: #3b82f6; border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-family: Outfit;">Đồng ý</button>
+                                <button type="button" onclick="window.declineFriend(${req.friendshipId})" style="background: transparent; border: 1px solid #ea4335; color: #ea4335; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-family: Outfit;">Từ chối</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    pendingRequestsList.innerHTML = '<div style="color: #666; font-style: italic;">Không có lời mời nào</div>';
+                }
+            }
+
+            if (friendsList) {
+                if (data.friends && data.friends.length > 0) {
+                    friendsList.innerHTML = data.friends.map(f => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: #1a1a2e; padding: 10px 16px; border-radius: 8px;">
+                            <span style="font-weight: 500;">${f.username}</span>
+                            <button type="button" onclick="window.declineFriend(${f.friendshipId})" style="background: transparent; border: 1px solid #ea4335; color: #ea4335; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-family: Outfit;">Xóa bạn</button>
+                        </div>
+                    `).join('');
+                } else {
+                    friendsList.innerHTML = '<div style="color: #666; font-style: italic;">Chưa có bạn bè</div>';
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    window.acceptFriend = async (id) => {
+        try {
+            await fetch(`/api/friends/accept/${id}`, { method: "POST", headers: getHeaders() });
+            loadFriends();
+        } catch(e) {}
+    };
+
+    window.declineFriend = async (id) => {
+        try {
+            await fetch(`/api/friends/decline/${id}`, { method: "POST", headers: getHeaders() });
+            loadFriends();
+        } catch(e) {}
+    };
+
+    openFriendsBtn?.addEventListener("click", () => {
+        if (friendsModal) {
+            friendsModal.style.display = "flex";
+            loadFriends();
+        }
+    });
+
+    closeFriendsBtn?.addEventListener("click", () => {
+        if (friendsModal) friendsModal.style.display = "none";
+    });
+
+    sendFriendRequestBtn?.addEventListener("click", async () => {
+        const username = addFriendInput?.value?.trim();
+        if (!username) {
+            setFriendStatus("Vui lòng nhập tên người dùng", true);
+            return;
+        }
+        sendFriendRequestBtn.disabled = true;
+        try {
+            const response = await fetch("/api/friends/request", {
+                method: "POST", headers: getHeaders(true), body: JSON.stringify({ username })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || data.error || "Lỗi gửi yêu cầu");
+            
+            setFriendStatus(data.message || "Đã gửi lời mời", false);
+            if (addFriendInput) addFriendInput.value = "";
+            loadFriends();
+            updateFriendBadge();
+        } catch (error) {
+            setFriendStatus(error.message, true);
+        } finally {
+            sendFriendRequestBtn.disabled = false;
+        }
+    });
+
+    const updateFriendBadge = async () => {
+        try {
+            const res = await fetch("/api/friends/pending-count?t=" + Date.now(), { headers: { ...getHeaders(), "Cache-Control": "no-cache" } });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (friendBadge) {
+                if (data.count > 0) {
+                    friendBadge.textContent = data.count > 9 ? "9+" : data.count;
+                    friendBadge.style.display = "flex";
+                } else {
+                    friendBadge.style.display = "none";
+                }
+            }
+        } catch (e) {}
+    };
+
+    updateFriendBadge();
+    setInterval(updateFriendBadge, 5000);
+
+    // --- ROOM INVITE FEATURE ---
+    const roomInviteModal = document.getElementById("roomInviteModal");
+    const inviterNameDisplay = document.getElementById("inviterNameDisplay");
+    const rejectRoomInviteBtn = document.getElementById("rejectRoomInviteBtn");
+    const acceptRoomInviteBtn = document.getElementById("acceptRoomInviteBtn");
+    
+    let currentRoomInvite = null;
+
+    const pollRoomInvites = async () => {
+        if (roomInviteModal && roomInviteModal.style.display === "flex") return;
+        try {
+            const res = await fetch("/api/rooms/invitations/pending?t=" + Date.now(), { headers: { ...getHeaders(), "Cache-Control": "no-cache" } });
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && data.length > 0) {
+                currentRoomInvite = data[0]; 
+                if (inviterNameDisplay) inviterNameDisplay.textContent = currentRoomInvite.inviterName;
+                if (roomInviteModal) roomInviteModal.style.display = "flex";
+            }
+        } catch (e) {}
+    };
+
+    setInterval(pollRoomInvites, 2000);
+
+    rejectRoomInviteBtn?.addEventListener("click", async () => {
+        if (!currentRoomInvite) return;
+        try {
+            await fetch(`/api/rooms/invitations/${currentRoomInvite.id}`, { method: "DELETE", headers: getHeaders() });
+        } catch(e) {}
+        if (roomInviteModal) roomInviteModal.style.display = "none";
+        currentRoomInvite = null;
+    });
+
+    acceptRoomInviteBtn?.addEventListener("click", async () => {
+        if (!currentRoomInvite) return;
+        acceptRoomInviteBtn.disabled = true;
+        acceptRoomInviteBtn.textContent = "Đang vào...";
+        try {
+            const response = await fetch("/api/rooms/join", {
+                method: "POST",
+                headers: getHeaders(true),
+                body: JSON.stringify({ roomCode: currentRoomInvite.roomCode, password: "" })
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || "Khong the tham gia phong.");
+            }
+
+            await fetch(`/api/rooms/invitations/${currentRoomInvite.id}`, { method: "DELETE", headers: getHeaders() });
+
+            const data = await response.json();
+            window.location.href = data.redirectUrl;
+        } catch (error) {
+            console.error(error);
+            alert(error.message);
+            if (roomInviteModal) roomInviteModal.style.display = "none";
+        } finally {
+            acceptRoomInviteBtn.disabled = false;
+            acceptRoomInviteBtn.textContent = "Vào phòng ngay";
+            currentRoomInvite = null;
         }
     });
 

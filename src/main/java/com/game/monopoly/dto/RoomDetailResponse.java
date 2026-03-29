@@ -30,6 +30,7 @@ public class RoomDetailResponse {
         private Integer maxPlayers;
         private RoomStatus status;
         private Long hostPlayerId;
+        private Long gameId;
     }
 
     @Getter
