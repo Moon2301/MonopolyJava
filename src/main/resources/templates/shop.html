@@ -12,48 +12,19 @@
 <body>
 <main class="shop-page">
     <header class="shop-header">
+        <button type="button" id="shopBackButton" class="back-button" aria-label="Quay về">← Quay về</button>
         <p class="section-tag">Cửa hàng tướng</p>
         <h1>Cửa Hàng</h1>
+        <div class="shop-balance-row">
+            <span id="shopCoinSilverSlot" class="currency-coin-slot" aria-hidden="true"></span>
+            <p id="shop-coins" class="shop-coins">Bạc: --</p>
+        </div>
     </header>
     <section class="shop-grid">
-        <article class="shop-card">
-            <div class="hero-image hero-a"></div>
-            <h2>Đại Gia Neon</h2>
-            <p>2.500 Xu</p>
-            <button type="button">Mua</button>
-        </article>
-        <article class="shop-card">
-            <div class="hero-image hero-b"></div>
-            <h2>Chiến Binh Xúc Xắc</h2>
-            <p>3.200 Xu</p>
-            <button type="button">Mua</button>
-        </article>
-        <article class="shop-card">
-            <div class="hero-image hero-c"></div>
-            <h2>Nữ Hoàng Tiền Thuê</h2>
-            <p>4.100 Xu</p>
-            <button type="button">Mua</button>
-        </article>
-        <article class="shop-card">
-            <div class="hero-image hero-d"></div>
-            <h2>Bóng Ma Bàn Cờ</h2>
-            <p>5.700 Xu</p>
-            <button type="button">Mua</button>
-        </article>
-        <article class="shop-card">
-            <div class="hero-image hero-e"></div>
-            <h2>Kỹ Sư Bản Đồ</h2>
-            <p>2.950 Xu</p>
-            <button type="button">Mua</button>
-        </article>
-        <article class="shop-card">
-            <div class="hero-image hero-f"></div>
-            <h2>Bá Tước May Mắn</h2>
-            <p>6.000 Xu</p>
-            <button type="button">Mua</button>
-        </article>
+        <p id="shop-loading" class="shop-state">Đang tải danh sách nhân vật...</p>
     </section>
 </main>
+<script src="/character/coin-system.js"></script>
 <script src="/js/shop.js"></script>
 </body>
 </html>

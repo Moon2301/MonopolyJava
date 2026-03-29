@@ -1,18 +1,24 @@
 window.onload = () => {
-    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+    const accountId = localStorage.getItem("accountId");
     const playerAvatar = document.getElementById("playerAvatar");
     const playerName = document.getElementById("playerName");
     const playerCoins = document.getElementById("playerCoins");
     const playerTickets = document.getElementById("playerTickets");
-    const tournamentTitle = document.getElementById("tournamentTitle");
-    const tournamentCountdown = document.getElementById("tournamentCountdown");
+    const playerProfileBanner = document.getElementById("playerProfileBanner");
     const roomCodeInput = document.getElementById("roomCodeInput");
     const createRoomButton = document.getElementById("createRoomButton");
     const joinRoomButton = document.getElementById("joinRoomButton");
     const roomActionStatus = document.getElementById("roomActionStatus");
     const routeTargets = document.querySelectorAll("[data-route]");
-
-    let countdownTimer = null;
+    const friendBadge = document.getElementById("friendBadge");
+    const notificationPanel = document.getElementById("notificationPanel");
+    const notificationBackdrop = document.getElementById("notificationBackdrop");
+    const openNotificationsBtn = document.getElementById("openNotificationsBtn");
+    const closeNotificationsBtn = document.getElementById("closeNotificationsBtn");
+    const markAllNotificationsBtn = document.getElementById("markAllNotificationsBtn");
+    const notificationList = document.getElementById("notificationList");
+    const notificationBadge = document.getElementById("notificationBadge");
+    const menuLogoutBtn = document.getElementById("menuLogoutBtn");
 
     const setRoomStatus = (message, isError = false) => {
         if (!roomActionStatus) {
@@ -24,8 +30,8 @@ window.onload = () => {
 
     const getHeaders = (includeJson = false) => {
         const headers = {};
-        if (token) {
-            headers.Authorization = `Bearer ${token}`;
+        if (accountId) {
+            headers["X-Account-Id"] = accountId;
         }
         if (includeJson) {
             headers["Content-Type"] = "application/json";
@@ -45,38 +51,49 @@ window.onload = () => {
 
     const formatNumber = (value) => new Intl.NumberFormat("vi-VN").format(value || 0);
 
-    const formatCountdown = (endsAt) => {
-        const diffMs = new Date(endsAt).getTime() - Date.now();
-        if (Number.isNaN(diffMs) || diffMs <= 0) {
-            return "00D:00H:00M";
+    const fetchActiveGame = async () => {
+        try {
+            const response = await fetch("/api/user/me/active-game", { headers: getHeaders() });
+            if (!response.ok) {
+                return null;
+            }
+            return await response.json();
+        } catch {
+            return null;
         }
-
-        const totalMinutes = Math.floor(diffMs / 60000);
-        const days = Math.floor(totalMinutes / (24 * 60));
-        const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
-        const minutes = totalMinutes % 60;
-        return `${String(days).padStart(2, "0")}D:${String(hours).padStart(2, "0")}H:${String(minutes).padStart(2, "0")}M`;
     };
 
-    const startCountdown = (endsAt) => {
-        if (!tournamentCountdown) {
-            return;
+    /** @returns {"proceed"|"blocked"|"redirected"} */
+    const resolveActiveGameGate = async () => {
+        const ag = await fetchActiveGame();
+        if (!ag?.hasActiveGame) {
+            return "proceed";
         }
-        if (countdownTimer) {
-            window.clearInterval(countdownTimer);
+        const solo = ag.soloVsAi === true;
+        const msg = solo
+            ? "Bạn đang còn trong ván đấu máy. Có muốn quay lại không?"
+            : "Bạn đang còn trong ván multiplayer. Có muốn quay lại không?";
+        if (window.confirm(msg)) {
+            const q = solo
+                ? `gameId=${ag.gameId}&vsBot=1`
+                : `gameId=${ag.gameId}&roomId=${ag.roomId != null ? ag.roomId : ""}`;
+            window.location.href = `/game-board?${q}`;
+            return "redirected";
         }
+        return "blocked";
+    };
 
-        const updateCountdown = () => {
-            tournamentCountdown.textContent = formatCountdown(endsAt);
-        };
-
-        updateCountdown();
-        countdownTimer = window.setInterval(updateCountdown, 1000);
+    const refreshMenuCurrencyIcons = () => {
+        if (window.CoinSystem && typeof CoinSystem.initCurrencySlots === "function") {
+            CoinSystem.initCurrencySlots([
+                { elId: "menuCoinSilver", type: "silver" },
+                { elId: "menuCoinGold", type: "gold" }
+            ]);
+        }
     };
 
     const bindHomeSummary = (data) => {
         const player = data.player || {};
-        const tournament = data.tournament || {};
 
         if (playerAvatar) {
             playerAvatar.src = player.avatarUrl || "/images/avatar-default.png";
@@ -90,18 +107,11 @@ window.onload = () => {
         if (playerTickets) {
             playerTickets.textContent = formatNumber(player.tickets);
         }
-        if (tournamentTitle) {
-            tournamentTitle.textContent = tournament.title || "Tournament";
-        }
-        if (tournament.endsAt) {
-            startCountdown(tournament.endsAt);
-        } else if (tournamentCountdown) {
-            tournamentCountdown.textContent = "00D:00H:00M";
-        }
+        refreshMenuCurrencyIcons();
     };
 
     const loadHomeSummary = async () => {
-        if (!token) {
+        if (!accountId) {
             window.location.href = "/login";
             return;
         }
@@ -125,11 +135,130 @@ window.onload = () => {
         }
     };
 
+    /** Số lời mời kết bạn chờ chấp nhận (badge nút bạn bè). */
+    const loadFriendBadge = async () => {
+        if (!friendBadge || !accountId) {
+            return;
+        }
+        try {
+            const response = await fetch("/api/social/friends", { headers: getHeaders() });
+            if (!response.ok) {
+                return;
+            }
+            const list = await response.json();
+            const pending = Array.isArray(list) ? list.filter((f) => f.canAccept === true).length : 0;
+            if (pending > 0) {
+                friendBadge.hidden = false;
+                friendBadge.textContent = pending > 9 ? "9+" : String(pending);
+            } else {
+                friendBadge.hidden = true;
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+    };
+
+    const escapeHtml = (s) =>
+        String(s ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+    const loadNotificationBadge = async () => {
+        if (!notificationBadge || !accountId) {
+            return;
+        }
+        try {
+            const response = await fetch("/api/social/notifications/unread-count", {
+                headers: getHeaders()
+            });
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            const n = Number(data.unreadCount || 0);
+            if (n > 0) {
+                notificationBadge.hidden = false;
+                notificationBadge.textContent = n > 9 ? "9+" : String(n);
+            } else {
+                notificationBadge.hidden = true;
+            }
+        } catch (e) {
+            console.warn(e);
+        }
+    };
+
+    const openNotificationPanel = () => {
+        if (!notificationPanel) {
+            return;
+        }
+        notificationPanel.hidden = false;
+        notificationPanel.setAttribute("aria-hidden", "false");
+        loadNotificationsList();
+    };
+
+    const closeNotificationPanel = () => {
+        if (!notificationPanel) {
+            return;
+        }
+        notificationPanel.hidden = true;
+        notificationPanel.setAttribute("aria-hidden", "true");
+    };
+
+    const loadNotificationsList = async () => {
+        if (!notificationList || !accountId) {
+            return;
+        }
+        try {
+            const response = await fetch("/api/social/notifications", { headers: getHeaders() });
+            if (handleUnauthorized(response, false)) {
+                return;
+            }
+            if (!response.ok) {
+                notificationList.innerHTML = "<li>Không tải được thông báo.</li>";
+                return;
+            }
+            const items = await response.json();
+            if (!Array.isArray(items) || items.length === 0) {
+                notificationList.innerHTML = '<li class="notification-empty">Chưa có thông báo.</li>';
+                return;
+            }
+            notificationList.innerHTML = items
+                .map((it) => {
+                    const unread = it.read === false;
+                    const cls = unread ? "notification-item notification-item--unread" : "notification-item";
+                    const rid = it.roomId != null ? String(it.roomId) : "";
+                    const typ = String(it.type || "");
+                    const sender = it.senderUsername ? escapeHtml(it.senderUsername) : "";
+                    const meta =
+                        (sender ? `${sender} · ` : "") + escapeHtml(it.createdAt || "");
+                    return `<li>
+  <button type="button" class="${cls}" data-notification-id="${it.notificationId}" data-type="${escapeHtml(typ)}" data-room-id="${escapeHtml(rid)}">
+    <div class="notification-item-title">${escapeHtml(it.title || "Thông báo")}</div>
+    <div class="notification-item-meta">${meta}</div>
+    <div class="notification-item-body">${escapeHtml(it.body || "")}</div>
+  </button>
+</li>`;
+                })
+                .join("");
+        } catch (e) {
+            console.warn(e);
+            notificationList.innerHTML = "<li>Lỗi tải thông báo.</li>";
+        }
+    };
+
     const createRoom = async () => {
         createRoomButton.disabled = true;
         setRoomStatus("Dang tao phong...");
 
         try {
+            const gate = await resolveActiveGameGate();
+            if (gate === "redirected") {
+                return;
+            }
+            if (gate === "blocked") {
+                throw new Error("Bạn đang trong một ván. Hãy kết thúc hoặc quay lại ván đó trước.");
+            }
             const response = await fetch("/api/rooms", {
                 method: "POST",
                 headers: getHeaders(true),
@@ -171,6 +300,13 @@ window.onload = () => {
         setRoomStatus("Dang tham gia phong...");
 
         try {
+            const gate = await resolveActiveGameGate();
+            if (gate === "redirected") {
+                return;
+            }
+            if (gate === "blocked") {
+                throw new Error("Bạn đang trong một ván. Hãy kết thúc hoặc quay lại ván đó trước.");
+            }
             const response = await fetch("/api/rooms/join", {
                 method: "POST",
                 headers: getHeaders(true),
@@ -207,6 +343,17 @@ window.onload = () => {
         });
     });
 
+    const openProfile = () => {
+        window.location.href = "/profile";
+    };
+    playerProfileBanner?.addEventListener("click", openProfile);
+    playerProfileBanner?.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openProfile();
+        }
+    });
+
     createRoomButton?.addEventListener("click", createRoom);
     joinRoomButton?.addEventListener("click", joinRoom);
     roomCodeInput?.addEventListener("keydown", (event) => {
@@ -215,5 +362,65 @@ window.onload = () => {
         }
     });
 
+    openNotificationsBtn?.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openNotificationPanel();
+    });
+    notificationBackdrop?.addEventListener("click", closeNotificationPanel);
+    closeNotificationsBtn?.addEventListener("click", closeNotificationPanel);
+    markAllNotificationsBtn?.addEventListener("click", async () => {
+        try {
+            const r = await fetch("/api/social/notifications/read-all", {
+                method: "POST",
+                headers: getHeaders(true),
+                body: "{}"
+            });
+            if (r.ok) {
+                await loadNotificationBadge();
+                await loadNotificationsList();
+            }
+        } catch (err) {
+            console.warn(err);
+        }
+    });
+    notificationList?.addEventListener("click", async (e) => {
+        const btn = e.target.closest("[data-notification-id]");
+        if (!btn) {
+            return;
+        }
+        e.preventDefault();
+        const id = btn.getAttribute("data-notification-id");
+        const type = btn.getAttribute("data-type");
+        const rid = btn.getAttribute("data-room-id");
+        if (!id) {
+            return;
+        }
+        try {
+            const r = await fetch(`/api/social/notifications/${id}/read`, {
+                method: "POST",
+                headers: getHeaders(true),
+                body: "{}"
+            });
+            if (r.ok) {
+                await loadNotificationBadge();
+            }
+        } catch (err) {
+            console.warn(err);
+        }
+        btn.classList.remove("notification-item--unread");
+        if (type === "ROOM_INVITE" && rid) {
+            window.location.href = `/private-table?roomId=${encodeURIComponent(rid)}`;
+        } else if (type === "FRIEND_REQUEST") {
+            window.location.href = "/friends";
+        }
+    });
+    menuLogoutBtn?.addEventListener("click", () => {
+        localStorage.removeItem("accountId");
+        window.location.href = "/login";
+    });
+
     loadHomeSummary();
+    loadFriendBadge();
+    loadNotificationBadge();
 };

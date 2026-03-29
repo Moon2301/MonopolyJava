@@ -6,12 +6,17 @@ import com.game.monopoly.model.metaData.Account;
 import com.game.monopoly.model.metaData.UserProfile;
 import com.game.monopoly.model.enums.UserRole;
 import com.game.monopoly.model.enums.AccountStatus;
+import com.game.monopoly.model.metaData.Hero;
 import com.game.monopoly.repository.AccountRepository;
+import com.game.monopoly.repository.HeroRepository;
 import com.game.monopoly.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -19,8 +24,8 @@ public class AuthService {
 
     private final AccountRepository accountRepository;
     private final UserProfileRepository userProfileRepository;
+    private final HeroRepository heroRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
 
     @Transactional
     public void register(RegisterRequest request) {
@@ -51,6 +56,11 @@ public class AuthService {
         profile.setGold(1000L);
         profile.setDiamonds(10L);
 
+        heroRepository
+                .findFirstByDefaultUnlockedTrueOrderByCharacterIdAsc()
+                .map(Hero::getCharacterId)
+                .ifPresent(profile::setCurrentHeroId);
+
         userProfileRepository.save(profile);
     }
     public java.util.Map<String, Object> login(LoginRequest request) {
@@ -59,12 +69,12 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), account.getPasswordHash())) {
             throw new RuntimeException("Invalid email or password");
         }
-        String token = jwtService.generateToken(account.getEmail());
-        
-        java.util.Map<String, Object> response = new java.util.HashMap<>();
-        response.put("token", token);
-        response.put("role", account.getRole().name()); // USER or ADMIN
-        
+
+        Map<String, Object> response = new HashMap<>();
+        // Bỏ JWT: trả về accountId để frontend lưu vào localStorage
+        response.put("accountId", account.getAccountId());
+        response.put("role", account.getRole().name()); // USER or ADMIN (giữ lại nếu UI cần)
+
         return response;
     }
 

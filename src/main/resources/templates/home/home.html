@@ -128,22 +128,17 @@
     <!-- Auth Protection Script -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem('authToken');
-            if (!token) {
+            const accountId = sessionStorage.getItem('accountId');
+            if (!accountId) {
                 window.location.replace('/login');
                 return;
             }
 
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                document.getElementById('userEmailDisplay').textContent = payload.sub || 'Đại Gia';
-            } catch (e) {
-                console.error("Token format error", e);
-            }
+            document.getElementById('userEmailDisplay').textContent = 'Đại Gia';
 
             document.getElementById('logoutBtn').addEventListener('click', () => {
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('userRole');
+                sessionStorage.removeItem('accountId');
+                sessionStorage.removeItem('userRole');
                 window.location.href = '/login';
             });
         });

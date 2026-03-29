@@ -8,50 +8,109 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/profile.css">
+    <script>
+        if (!sessionStorage.getItem("accountId")) {
+            window.location.replace("/login");
+        }
+    </script>
 </head>
 <body>
 <main class="profile-page">
+    <button type="button" id="closeProfileBtn" aria-label="Đóng" style="position:absolute; top: 15px; right: 20px; font-size: 24px; color: white; background: transparent; border: none; cursor: pointer; z-index: 10;">✕</button>
     <section class="panel hero-panel">
         <div class="profile-head">
-            <div class="avatar">P</div>
+            <div class="avatar-wrap">
+                <div class="avatar" id="profileAvatar">P</div>
+                <button type="button" id="editAvatarButton" class="edit-avatar-btn">
+                    Sửa avatar
+                </button>
+                <input type="file" id="avatarFileInput" class="avatar-file-input" accept="image/*" hidden>
+                <p id="avatarStatus" class="avatar-status" aria-live="polite"></p>
+            </div>
             <div>
-                <p class="section-tag">Hồ sơ người chơi</p>
-                <h1>Tên người chơi</h1>
-                <span class="coin-badge">18.450 Xu</span>
+                <p class="section-tag">Hồ sơ người dùng</p>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <h1 id="profileUsername">Tên người chơi</h1>
+                    <button type="button" id="editUsernameBtn" aria-label="Sửa tên" style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: var(--gold-color, #ffeb3b);">✎</button>
+                </div>
+                <div class="badges-row">
+                    <span class="coin-badge coin-badge--silver">
+                        <span id="profileCoinSilverSlot" class="currency-coin-slot" aria-hidden="true"></span>
+                        <span id="profileCoins">0 Bạc</span>
+                    </span>
+                    <span class="coin-badge coin-badge--gold tickets-badge">
+                        <span id="profileCoinGoldSlot" class="currency-coin-slot" aria-hidden="true"></span>
+                        <span id="profileTickets">0 Vé</span>
+                    </span>
+                </div>
+
+                <div class="profile-actions">
+                    <button type="button" id="changeNameButton" class="profile-action-link change-name-btn">
+                        Đổi tên <span class="rename-cost">(1.000 Bạc)</span>
+                    </button>
+                    <a class="profile-action-link" href="/game-history">Lịch sử đấu</a>
+                    <button type="button" id="logoutButton" class="profile-action-link logout-action-btn">Đăng xuất</button>
+                </div>
+                <p id="renameHint" class="rename-hint" aria-live="polite"></p>
             </div>
         </div>
     </section>
 
+    <section class="equipped-character-card">
+        <p class="section-tag">Nhân vật hiển thị hồ sơ</p>
+        <p class="equipped-character-sub">Suy ra từ hero mặc định bên dưới (hoặc hero mở sẵn)</p>
+        <div class="equipped-character-content">
+            <img id="equippedCharacterImage" class="equipped-character-image" alt="Hình nhân vật" hidden>
+            <div id="equippedCharacterName" class="equipped-character-name">-</div>
+        </div>
+    </section>
+
+    <section class="equipped-character-card current-hero-card">
+        <p class="section-tag">Hero mặc định (current hero)</p>
+        <p class="equipped-character-sub">Bắt buộc có hero để vào trận — dùng tự động trong phòng nếu chưa chọn tay</p>
+        <label class="current-hero-label" for="currentHeroSelect">Chọn hero</label>
+        <select id="currentHeroSelect" class="current-hero-select"></select>
+        <p id="currentHeroStatus" class="avatar-status" aria-live="polite"></p>
+    </section>
+
+    <div id="renameModal" class="rename-modal" hidden aria-hidden="true" role="dialog" aria-labelledby="renameModalTitle">
+        <div class="rename-modal__backdrop" data-close-rename="1"></div>
+        <div class="rename-modal__panel">
+            <h2 id="renameModalTitle" class="rename-modal__title">Đổi tên hiển thị</h2>
+            <p class="rename-modal__cost">Phí: <strong>1.000 Bạc</strong> (trừ ngay khi xác nhận)</p>
+            <label class="rename-modal__label" for="renameInput">Tên mới</label>
+            <input type="text" id="renameInput" class="rename-modal__input" maxlength="80" autocomplete="nickname" placeholder="Nhập tên hiển thị mới">
+            <p id="renameModalError" class="rename-modal__error" role="alert"></p>
+            <div class="rename-modal__actions">
+                <button type="button" class="rename-modal__btn rename-modal__btn--ghost" data-close-rename="1">Hủy</button>
+                <button type="button" id="renameConfirmButton" class="rename-modal__btn rename-modal__btn--primary">Xác nhận đổi tên</button>
+            </div>
+        </div>
+    </div>
+
     <section class="panel stats-panel">
         <p class="section-tag">Thống kê</p>
         <div class="stats-grid">
-            <div class="stat-card"><strong>128</strong><span>Trận đấu</span></div>
-            <div class="stat-card"><strong>67%</strong><span>Tỷ lệ thắng</span></div>
-            <div class="stat-card"><strong>42</strong><span>Tài sản đã thắng</span></div>
-            <div class="stat-card"><strong>12</strong><span>Giải đấu</span></div>
+            <div class="stat-card"><strong id="statMatches">0</strong><span>Trận đấu</span></div>
+            <div class="stat-card"><strong id="statWinRate">0%</strong><span>Tỷ lệ thắng</span></div>
+            <div class="stat-card"><strong id="statRankTier">-</strong><span>Hạng</span></div>
         </div>
     </section>
-
-    <section class="panel inventory-panel">
-        <p class="section-tag">Kho đồ</p>
-        <div class="inventory-grid">
-            <div class="inventory-item">Xúc xắc vàng</div>
-            <div class="inventory-item">Quân cờ neon</div>
-            <div class="inventory-item">Giao diện bàn cờ VIP</div>
-            <div class="inventory-item">Gói thẻ may mắn</div>
+    <!-- Edit Username Modal -->
+    <div id="editNameModal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); z-index: 100; justify-content: center; align-items: center;">
+        <div class="modal-content" style="background: var(--panel-bg, #2a2a3e); padding: 24px; border-radius: 16px; border: 1px solid var(--border-color, #3a3a4e); width: 90%; max-width: 400px; text-align: center; color: white;">
+            <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 20px;">Đổi tên người dùng</h2>
+            <input type="text" id="newNameInput" placeholder="Nhập tên mới (< 20 ký tự)" maxlength="20" style="width: 100%; padding: 12px; margin-bottom: 24px; border-radius: 8px; border: 1px solid var(--border-color, #3a3a4e); background: #1a1a2e; color: white; font-size: 16px; box-sizing: border-box;">
+            <p id="editNameError" aria-live="polite" style="color: #ff5252; font-size: 14px; margin-top: -16px; margin-bottom: 16px; display: none;"></p>
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" id="cancelEditNameBtn" style="padding: 10px 20px; border-radius: 8px; border: none; background: #3a3a4e; color: white; cursor: pointer; font-weight: 600;">Hủy</button>
+                <button type="button" id="confirmEditNameBtn" style="padding: 10px 20px; border-radius: 8px; border: none; background: var(--gold-color, #ffeb3b); color: #1a1a2e; cursor: pointer; font-weight: 700;">Lưu</button>
+            </div>
         </div>
-    </section>
-
-    <aside class="panel achievements-panel">
-        <p class="section-tag">Thành tích</p>
-        <div class="achievement-list">
-            <div class="achievement">Chiến thắng đầu tiên</div>
-            <div class="achievement">Nhà sưu tầm tài sản</div>
-            <div class="achievement">Bậc thầy tiền thuê</div>
-            <div class="achievement">Vào chung kết giải đấu</div>
-        </div>
-    </aside>
+    </div>
+    
 </main>
+<script src="/character/coin-system.js"></script>
 <script src="/js/profile.js"></script>
 </body>
 </html>

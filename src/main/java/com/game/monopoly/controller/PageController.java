@@ -6,6 +6,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class PageController {
 
+    @GetMapping("/")
+    public String root() {
+        return "redirect:/home";
+    }
+
     @GetMapping("/login")
     public String loginPage() {
         return "auth/login";
@@ -21,6 +26,21 @@ public class PageController {
         return "main-menu";
     }
 
+    @GetMapping("/profile")
+    public String profile() {
+        return "home/profile";
+    }
+
+    @GetMapping("/friends")
+    public String friends() {
+        return "home/friends";
+    }
+
+    @GetMapping("/game-history")
+    public String gameHistory() {
+        return "home/game-history";
+    }
+
     @GetMapping("/private-table")
     public String privateTable() {
         return "private-table";
@@ -33,12 +53,27 @@ public class PageController {
 
     @GetMapping("/map-editor")
     public String mapEditor() {
-        return "map-editor";
+        return "redirect:/home";
+    }
+
+    @GetMapping("/tournament")
+    public String tournament() {
+        return "redirect:/home";
+    }
+
+    @GetMapping("/tutorial")
+    public String tutorial() {
+        return "redirect:/home";
     }
 
     @GetMapping("/shop")
     public String shop() {
         return "shop";
+    }
+
+    @GetMapping("/play-vs-ai")
+    public String playVsAi() {
+        return "home/play-vs-ai";
     }
 
     @GetMapping("/admin")

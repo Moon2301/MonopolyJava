@@ -53,11 +53,19 @@
     </section>
 
     <aside class="panel players-panel">
-        <p class="section-tag">Huong Dan Nhanh</p>
-        <div class="player-list">
-            <div class="player-row"><span class="avatar">1</span><div><strong>Tao phong</strong><span>Nhap ten, che do va mat khau neu can</span></div></div>
-            <div class="player-row"><span class="avatar">2</span><div><strong>Tham gia</strong><span>Nhap ma phong hoac bam JOIN trong danh sach</span></div></div>
-            <div class="player-row"><span class="avatar">3</span><div><strong>Vao ban rieng</strong><span>He thong se tu chuyen sang private table</span></div></div>
+        <p class="section-tag">Ban Be</p>
+        <div class="button-stack friend-add-stack">
+            <input id="friendUsernameInput" type="text" placeholder="Nhap username ban be" aria-label="Username ban be">
+            <button type="button" id="addFriendButton" class="accent">Them Ban</button>
+        </div>
+        <p id="friendStatus" class="section-tag" style="margin-top: 12px;"></p>
+        <div id="friendList" class="player-list"></div>
+
+        <p class="section-tag" style="margin-top: 20px;">Kênh Chat</p>
+        <div id="channelChatMessages" class="channel-chat-messages"></div>
+        <div class="channel-chat-input-row">
+            <input id="channelChatInput" type="text" placeholder="Nhập tin nhắn chung..." aria-label="Tin nhắn kênh chat">
+            <button type="button" id="sendChannelChatButton" class="accent">Gửi</button>
         </div>
     </aside>
 </main>

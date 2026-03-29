@@ -12,4 +12,6 @@ public class BoardCellRequest {
     private Integer price;
     private Integer baseRent;
     private Integer maxHouseLevel;
+
+    private String colorHex;
 }

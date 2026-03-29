@@ -27,6 +27,18 @@ public class Hero {
     @Column(name = "base_income_bonus")
     private Integer baseIncomeBonus = 0;
 
+    @Column(name = "price")
+    private Integer price = 0;
+
+    @Column(name = "appearance_description", length = 300)
+    private String appearanceDescription;
+
+    @Column(name = "starting_gold_bonus")
+    private Integer startingGoldBonus = 0;
+
+    @Column(name = "default_unlocked")
+    private Boolean defaultUnlocked = false;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 }

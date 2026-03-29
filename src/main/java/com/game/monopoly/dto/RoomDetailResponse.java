@@ -17,6 +17,8 @@ public class RoomDetailResponse {
     private RoomDto room;
     private CurrentPlayerDto currentPlayer;
     private List<PlayerDto> players;
+    /** Bạn đã kết bạn (ACCEPTED) và chưa có trong phòng — để mời qua tin nhắn. */
+    private List<InviteFriendDto> inviteFriends;
 
     @Getter
     @Builder
@@ -30,6 +32,9 @@ public class RoomDetailResponse {
         private Integer maxPlayers;
         private RoomStatus status;
         private Long hostPlayerId;
+        /** Có khi phòng đã vào ván ({@code IN_GAME}). */
+        private Long activeGameId;
+        private Boolean isStarted;
     }
 
     @Getter
@@ -65,5 +70,15 @@ public class RoomDetailResponse {
         private Boolean isHost;
         private Boolean isReady;
         private Integer slotIndex;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    public static class InviteFriendDto {
+        private Long userProfileId;
+        private String username;
+        private String avatarUrl;
+        private String presenceStatus;
     }
 }

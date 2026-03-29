@@ -65,7 +65,6 @@ body {
 .hero-arrow,
 .icon-chip,
 .friend-row,
-.mode-button,
 .play-button,
 .add-friend-button {
     font: inherit;
@@ -156,6 +155,34 @@ body {
     color: #d6a401;
 }
 
+.stat-pill.coin-silver em {
+    color: #778ca5;
+}
+
+.stat-pill.coin-gold em {
+    color: #d79f00;
+}
+
+.stat-pill--with-coin {
+    gap: 8px;
+}
+
+.currency-coin-slot {
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stat-pill-text {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
 .room-title {
     justify-self: center;
     min-width: min(500px, 100%);
@@ -180,10 +207,176 @@ body {
     position: relative;
     z-index: 1;
     margin-top: 16px;
+    display: block;
+}
+
+/* Modal mời bạn (bấm dấu + ở ô trống) */
+.invite-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 316px;
-    gap: 18px;
-    align-items: start;
+    place-items: center;
+    padding: 16px;
+}
+
+.invite-modal[hidden] {
+    display: none !important;
+}
+
+.invite-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(40, 22, 18, 0.55);
+    cursor: pointer;
+}
+
+.invite-modal-panel {
+    position: relative;
+    z-index: 1;
+    width: min(420px, 100%);
+    max-height: min(72vh, 520px);
+    display: flex;
+    flex-direction: column;
+    padding: 18px 20px 16px;
+    border-radius: 22px;
+    background: linear-gradient(180deg, #fff9f0 0%, #f3e6d8 100%);
+    box-shadow: 0 24px 48px rgba(60, 30, 20, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    color: var(--text-dark);
+}
+
+.invite-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.invite-modal-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #4a3028;
+}
+
+.invite-modal-close {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.06);
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: #5c4038;
+}
+
+.invite-modal-hint {
+    margin: 0 0 12px;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    color: rgba(74, 48, 40, 0.85);
+}
+
+.invite-modal-direct {
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(90, 58, 52, 0.12);
+}
+
+.invite-modal-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #4a3028;
+    margin-bottom: 8px;
+}
+
+.invite-modal-direct-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.invite-modal-input {
+    flex: 1;
+    min-width: 160px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(90, 58, 52, 0.2);
+    font: inherit;
+    font-size: 0.92rem;
+    background: #fff;
+    color: #3d2a26;
+}
+
+.invite-modal-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 80px;
+}
+
+.invite-modal-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(90, 58, 52, 0.12);
+}
+
+.invite-modal-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #3d2a26;
+}
+
+.invite-presence {
+    font-weight: 500;
+    font-size: 0.8rem;
+    opacity: 0.88;
+    color: #5c4037;
+}
+
+.invite-friend-btn {
+    flex-shrink: 0;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 999px;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    color: #1a3d1a;
+    background: linear-gradient(135deg, #86efac, #22c55e);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
+}
+
+.invite-friend-btn:hover {
+    filter: brightness(1.05);
+}
+
+.invite-friends-empty {
+    font-size: 0.92rem;
+    color: rgba(74, 48, 40, 0.8);
+    line-height: 1.45;
+    padding: 8px 4px;
+}
+
+.invite-friends-empty a {
+    color: #1d7ed8;
+    font-weight: 600;
 }
 
 .settings-bar {
@@ -228,23 +421,6 @@ body {
     background: rgba(135, 191, 233, 0.72);
     color: #fff;
     font-size: 2rem;
-}
-
-.mode-buttons {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-}
-
-.mode-button {
-    min-height: 72px;
-    border: 3px solid rgba(255, 255, 255, 0.72);
-    border-radius: 14px;
-    background: linear-gradient(180deg, #35a8ef, #1575c3);
-    color: #fff;
-    font-size: 1.3rem;
-    font-weight: 800;
-    box-shadow: var(--shadow);
 }
 
 .room-layout {
@@ -366,9 +542,53 @@ body {
 
 .hero-selection-header {
     display: grid;
-    grid-template-columns: 160px minmax(0, 1fr);
+    grid-template-columns: 160px minmax(0, 0.9fr) minmax(0, 1.1fr);
     gap: 16px;
-    align-items: center;
+    align-items: start;
+}
+
+@media (max-width: 960px) {
+    .hero-selection-header {
+        grid-template-columns: 1fr;
+    }
+}
+
+.hero-skill-panel {
+    padding: 12px 14px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 2px solid rgba(255, 255, 255, 0.65);
+    min-height: 120px;
+}
+
+.hero-skill-eyebrow {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: rgba(87, 60, 48, 0.65);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+}
+
+.hero-skill-name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin-bottom: 8px;
+}
+
+.hero-skill-desc {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    color: rgba(55, 40, 32, 0.88);
+}
+
+.hero-skill-cd {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(87, 60, 48, 0.72);
 }
 
 .hero-current-media {
@@ -385,6 +605,42 @@ body {
     width: 100%;
     height: 100%;
     object-fit: contain;
+}
+
+.hero-current-svg-host {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    line-height: 0;
+}
+
+.hero-current-svg-host svg {
+    width: 86%;
+    height: auto;
+    max-height: 100%;
+}
+
+.hero-option-media--svg {
+    line-height: 0;
+}
+
+.hero-option-media--svg svg {
+    width: 72px;
+    height: 88px;
+    max-width: 100%;
+}
+
+.slot-hero-media--svg {
+    display: grid;
+    place-items: center;
+    line-height: 0;
+}
+
+.slot-hero-svg-wrap svg {
+    width: 100px;
+    height: auto;
+    max-height: 200px;
 }
 
 .hero-empty-state {
@@ -577,6 +833,11 @@ body {
     background: linear-gradient(180deg, #f06f7d, #cc4056);
 }
 
+.ready-host {
+    background: linear-gradient(180deg, rgba(120, 140, 180, 0.95), rgba(80, 100, 140, 0.98));
+    color: #f0f4ff;
+}
+
 .add-slot-button {
     width: 126px;
     height: 126px;
@@ -600,6 +861,13 @@ body {
     font-size: 2rem;
     font-weight: 800;
     box-shadow: var(--shadow);
+}
+
+.play-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    filter: grayscale(0.25);
 }
 
 .room-footer-status {
@@ -721,7 +989,6 @@ body {
 .hero-arrow:hover,
 .icon-chip:hover,
 .friend-row:hover,
-.mode-button:hover,
 .play-button:hover,
 .add-friend-button:hover {
     transform: translateY(-3px) scale(1.02);
@@ -730,7 +997,6 @@ body {
 
 @media (max-width: 1280px) {
     .room-header,
-    .top-controls,
     .room-layout {
         grid-template-columns: 1fr;
     }
@@ -772,7 +1038,6 @@ body {
         min-height: 62px;
     }
 
-    .mode-buttons,
     .slots-grid {
         grid-template-columns: 1fr;
     }

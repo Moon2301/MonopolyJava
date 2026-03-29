@@ -3,9 +3,9 @@ package com.game.monopoly.service;
 import com.game.monopoly.dto.HomeSummaryResponse;
 import com.game.monopoly.model.metaData.Account;
 import com.game.monopoly.model.metaData.UserProfile;
+import com.game.monopoly.repository.AccountRepository;
 import com.game.monopoly.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -19,16 +19,23 @@ public class HomeService {
     private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
     private final UserProfileRepository userProfileRepository;
+    private final AccountRepository accountRepository;
 
-    public HomeSummaryResponse getHomeSummary(Authentication authentication) {
-        Account account = extractAccount(authentication);
+    public HomeSummaryResponse getHomeSummary(Long accountId) {
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new RuntimeException("Account not found"));
         UserProfile profile = userProfileRepository.findByAccount_AccountId(account.getAccountId())
                 .orElseThrow(() -> new RuntimeException("UserProfile not found"));
+
+        String avatarUrl = profile.getAvatarUrl();
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            avatarUrl = DEFAULT_AVATAR;
+        }
 
         return HomeSummaryResponse.builder()
                 .player(HomeSummaryResponse.PlayerDto.builder()
                         .username(profile.getUsername())
-                        .avatarUrl(DEFAULT_AVATAR)
+                        .avatarUrl(avatarUrl)
                         .coins(profile.getGold())
                         .tickets(profile.getDiamonds())
                         .build())
@@ -40,12 +47,5 @@ public class HomeService {
                         .endsAt(LocalDateTime.now().plusHours(25).format(ISO_FORMATTER))
                         .build())
                 .build();
-    }
-
-    private Account extractAccount(Authentication authentication) {
-        if (authentication == null || !(authentication.getPrincipal() instanceof Account account)) {
-            throw new RuntimeException("Unauthorized");
-        }
-        return account;
     }
 }

@@ -49,6 +49,15 @@ public class Room {
     @Column(nullable = false, length = 20)
     private RoomStatus status;
 
+    /** Ván đang chơi (sau khi chủ bấm Bắt đầu) — để client trong phòng poll và chuyển sang bàn. */
+    @Column(name = "active_game_id")
+    private Long activeGameId;
+
+    /** Đã bắt đầu ván (bổ sung cho {@link #status} IN_GAME). */
+    @Column(name = "is_started", nullable = false)
+    @Builder.Default
+    private Boolean isStarted = false;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

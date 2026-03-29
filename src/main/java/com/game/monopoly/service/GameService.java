@@ -1,11 +1,13 @@
 package com.game.monopoly.service;
 
 import com.game.monopoly.model.inGameData.Game;
+import com.game.monopoly.model.enums.GameStatus;
 import com.game.monopoly.repository.GameRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +37,12 @@ public class GameService {
         game.setTurnState(newGame.getTurnState());
         game.setCurrentTurn(newGame.getCurrentTurn());
         game.setCurrentPlayerOrder(newGame.getCurrentPlayerOrder());
+        game.setEndedAt(newGame.getEndedAt());
+        game.setWinnerPlayerId(newGame.getWinnerPlayerId());
+
+        if (game.getStatus() == GameStatus.FINISHED && game.getEndedAt() == null) {
+            game.setEndedAt(LocalDateTime.now());
+        }
 
         return gameRepository.save(game);
     }

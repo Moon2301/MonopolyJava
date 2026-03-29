@@ -8,6 +8,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/private-table.css">
+    <link rel="stylesheet" href="/css/main-menu.css">
+    <link rel="stylesheet" href="/character/character.css">
 </head>
 <body>
 <div class="private-room">
@@ -25,8 +27,14 @@
                 <div class="player-info">
                     <div class="player-name-ribbon" id="playerName">REN GROUP</div>
                     <div class="player-stats">
-                        <span class="stat-pill"><strong id="playerCoins">0</strong><em>Xu</em></span>
-                        <span class="stat-pill"><strong id="playerTickets">0</strong><em>Ve</em></span>
+                        <span class="stat-pill coin-silver stat-pill--with-coin">
+                            <span id="menuCoinSilver" class="currency-coin-slot" aria-hidden="true"></span>
+                            <span class="stat-pill-text"><strong id="playerCoins">0</strong><em>Bạc</em></span>
+                        </span>
+                        <span class="stat-pill coin-gold stat-pill--with-coin">
+                            <span id="menuCoinGold" class="currency-coin-slot" aria-hidden="true"></span>
+                            <span class="stat-pill-text"><strong id="playerTickets">0</strong><em>Vé</em></span>
+                        </span>
                     </div>
                 </div>
             </section>
@@ -34,29 +42,57 @@
 
         <div class="room-title">PRIVATE TABLE</div>
 
-        <nav class="header-icons" aria-label="Dieu huong dau trang">
-            <button type="button" class="circle-icon" data-action="shop" aria-label="Cua hang">🛒</button>
-            <button type="button" class="circle-icon" data-action="menu" aria-label="Menu">☰</button>
-            <button type="button" class="circle-icon" data-action="settings" aria-label="Cai dat">⚙</button>
-            <button type="button" class="circle-icon close" data-action="close" aria-label="Dong">✕</button>
+        <nav class="header-icons header-icons--compact" aria-label="Lối tắt">
+            <button type="button" class="circle-icon icon-friends" data-route="/friends" aria-label="Bạn bè" title="Bạn bè">👥</button>
+            <button type="button" class="circle-icon icon-shop" data-route="/shop" aria-label="Cửa hàng">🛒</button>
+            <button type="button" class="circle-icon icon-notifications" id="openNotificationsBtn" aria-label="Thông báo" title="Thông báo">🔔</button>
         </nav>
     </header>
+
+    <div id="notificationPanel" class="notification-panel" hidden aria-hidden="true">
+        <div class="notification-panel-backdrop" id="notificationBackdrop"></div>
+        <aside class="notification-panel-sheet" role="dialog" aria-modal="true" aria-labelledby="notificationPanelTitle">
+            <header class="notification-panel-header">
+                <h2 id="notificationPanelTitle" class="notification-panel-title">Thông báo</h2>
+                <div class="notification-panel-actions">
+                    <button type="button" class="notification-mark-all" id="markAllNotificationsBtn">Đọc hết</button>
+                    <button type="button" class="notification-close-sheet" id="closeNotificationsBtn" aria-label="Đóng">✕</button>
+                </div>
+            </header>
+            <ul id="notificationList" class="notification-list"></ul>
+            <footer class="notification-panel-footer">
+                <button type="button" class="notification-logout-btn" id="menuLogoutBtn">Đăng xuất</button>
+            </footer>
+        </aside>
+    </div>
 
     <section class="top-controls">
         <div class="settings-bar room-settings-display">
             <div class="settings-label">TABLE SETTINGS</div>
             <button type="button" class="icon-chip" id="roomVisibilityIndicator" aria-label="Che do phong">👁</button>
-            <div class="room-code-display">Room: <strong id="roomCode">-</strong></div>
+            <div class="room-code-display"><strong id="roomCode">-</strong></div>
             <button type="button" class="icon-chip" data-action="copy-code" aria-label="Sao chep ma phong">⧉</button>
         </div>
-
-        <div class="mode-buttons" id="modeButtons">
-            <button type="button" class="mode-button" data-mode="TWO_VS_TWO">2X2</button>
-            <button type="button" class="mode-button" data-mode="QUICK_GAME">QUICK GAME</button>
-            <button type="button" class="mode-button" data-mode="NO_GADGETS">NO GADGETS</button>
-            <button type="button" class="mode-button" data-mode="FANTASY">FANTASY</button>
-        </div>
     </section>
+
+    <div id="inviteFriendModal" class="invite-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="inviteModalTitle">
+        <div class="invite-modal-backdrop" data-action="close-invite-modal"></div>
+        <div class="invite-modal-panel">
+            <div class="invite-modal-head">
+                <h2 id="inviteModalTitle" class="invite-modal-title">Mời bạn vào phòng</h2>
+                <button type="button" class="invite-modal-close" data-action="close-invite-modal" aria-label="Đóng">✕</button>
+            </div>
+            <p class="invite-modal-hint">Chọn bạn đã kết bạn hoặc nhập username bên dưới. Người nhận sẽ thấy thông báo (chuông) ở menu chính.</p>
+            <div class="invite-modal-direct">
+                <label class="invite-modal-label" for="inviteUsernameInput">Mời theo username</label>
+                <div class="invite-modal-direct-row">
+                    <input type="text" id="inviteUsernameInput" class="invite-modal-input" placeholder="vd: player2" autocomplete="username" maxlength="100">
+                    <button type="button" class="invite-friend-btn" data-action="invite-by-username">Mời</button>
+                </div>
+            </div>
+            <ul id="inviteModalList" class="invite-modal-list"></ul>
+        </div>
+    </div>
 
     <main class="room-layout room-layout-wide">
         <section class="slots-area">
@@ -64,11 +100,18 @@
                 <div class="hero-selection-header">
                     <div class="hero-current-media">
                         <img id="selectedHeroImage" class="hero-current-image" src="" alt="Hero hien tai">
+                        <div id="selectedHeroSvgHost" class="hero-current-svg-host" hidden></div>
                         <div id="heroEmptyState" class="hero-empty-state">No hero selected</div>
                     </div>
                     <div class="hero-current-info">
                         <div class="hero-current-label">Selected Hero</div>
                         <div id="selectedHeroName" class="hero-current-name">No hero selected</div>
+                    </div>
+                    <div id="heroSkillPanel" class="hero-skill-panel" hidden>
+                        <div class="hero-skill-eyebrow">Kỹ năng</div>
+                        <div id="selectedHeroSkillName" class="hero-skill-name"></div>
+                        <p id="selectedHeroSkillDesc" class="hero-skill-desc"></p>
+                        <div id="selectedHeroSkillCd" class="hero-skill-cd"></div>
                     </div>
                 </div>
                 <div id="heroList" class="hero-list"></div>
@@ -82,6 +125,8 @@
         </section>
     </main>
 </div>
+<script src="/js/hero-system.js"></script>
+<script src="/character/coin-system.js"></script>
 <script src="/js/private-table.js"></script>
 </body>
 </html>
